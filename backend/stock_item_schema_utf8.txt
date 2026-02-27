@@ -1,0 +1,40 @@
+﻿CREATE TABLE `stock_item` (
+  `id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `parent` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `base_units` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `hsn` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `closing_balance` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `opening_balance` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `gst` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_one_2` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_one_3` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_one_4` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_one_5` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_1` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_2` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_3` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_3a` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `rate_4` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `mrp_disc_1` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `mrp_disc_2` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `mrp_disc_3` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `mrp_disc_4` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `default_mrp` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `ats_barcode` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `last_purchase_cost` varchar(255) COLLATE utf8mb3_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
+
+--
+-- Dumping data for table `stock_item`
+--
+
+INSERT INTO `stock_item` (`id`, `name`, `parent`, `base_units`, `hsn`, `closing_balance`, `opening_balance`, `gst`, `rate_one_2`, `rate_one_3`, `rate_one_4`, `rate_one_5`, `rate_1`, `rate_2`, `rate_3`, `rate_3a`, `rate_4`, `mrp_disc_1`, `mrp_disc_2`, `mrp_disc_3`, `mrp_disc_4`, `default_mrp`, `ats_barcode`, `last_purchase_cost`) VALUES
+(1, '000041 999 CONFERENCE FILE', 'KASHYAP', 'Pcs', '39261010', '342.00 Pcs', '342.00 Pcs', '18', '', '', '', '', '45', '39.9996', '35.0004', '32.0004', '30', '', '', '', '', '50.00/Pcs', '000041', '12.00/Pcs'),
+(2, '000052 Dak Pad Regular', 'VPS', 'Pcs', '48203000', '0.00 Pcs', '3.00 Pcs', '18', '', '', '', '', '120.001', '96.0008', '83.7496', '62', '71.4984', '', '', '', '', '150.00/Pcs', '000052', '62.00/Pcs'),
+(3, '000054 Floor Cloth Duster', 'EMAGE', 'Pcs', '6307', '770.00 Pcs', '2.00 Pcs', '5', '', '', '', '', '25', '17.9999', '16.7499', '10.75', '12.7499', '', '', '', '', '40.00/Pcs', '000054', '10.75/Pcs'),
+(4, '000078 Kebica Pen Stand 240 2 Pen 480/-', 'KEBICA', 'Pcs', '39261010', '1.00 Pcs', '1.00 Pcs', '18', '', '', '', '', '469.9993', '310', '234.9988', '162', '199.9987', '', '', '', '', '480.00/Pcs', '000078', '162.00/Pcs'),
+(5, '000082 CPI Pen Stand 920 2pen Small 120/-', 'CPI', 'Pcs', '39261010', '7.00 Pcs', '7.00 Pcs', '18', '', '', '', '', '109.9996', '77.9998', '58.4998', '40.50', '50.7497', '', '', '', '', '120.00/Pcs', '000082', '40.50/Pcs'),
+(6, '000086 Kebica Pen Stand 600 GNT 2 Pen 1360/-', 'KEBICA', 'Pcs', '39261010', '8.00 Pcs', '1.00 Pcs', '18', '', '', '', '', '1299.9987', '809.9956', '659.9957', '455', '567.9993', '', '', '', '', '1360.00/Pcs', '000086', '455.00/Pcs'),
+(7, '000093 Whig Pen Stand 732 2 Pen 330/-', 'GEMSON RR', 'Pcs', '39261010', '1.00 Pcs', '1.00 Pcs', '18', '', '', '', '', '319.9997', '214.9996', '158.4995', '109.35', '136.9991', '', '', '', '', '330.00/Pcs', '000093', '109.35/Pcs'),
+(8, '000097 Impex 12\" Lami Roll 300/-', 'EMAGE', 'Pcs', '39219010', '108.00 Pcs', '138.00 Pcs', '18', '', '', '', '', '270', '174.9997', '149.9997', '116.16', '121.9994', '', '', '', '', '300.00/Pcs', '000097', '116.16/Pcs'),
