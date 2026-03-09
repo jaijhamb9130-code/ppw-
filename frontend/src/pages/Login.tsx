@@ -45,7 +45,7 @@ export default function Login() {
                 <div className="text-center mb-8">
                     <img src="/ppw-logo.png" alt="PPW Logo" className="w-24 h-24 mx-auto mb-4 object-contain" />
                     <h1 className="text-3xl font-bold text-slate-800 mb-2 tracking-tight">PPW</h1>
-                    <p className="text-slate-500 font-medium">Purbanchal Paper & Works</p>
+                    <p className="text-slate-500 font-medium">Purbanchal Papers & Works</p>
                 </div>
 
                 {error && (

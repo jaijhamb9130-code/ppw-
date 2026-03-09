@@ -277,6 +277,8 @@ export class TallyService {
       'Name',
       'MasterId',
       'Parent',
+      'Category',
+      'Group',
       'Closing Balance',
       'Base units',
       'AdvanceDetails',
@@ -372,6 +374,8 @@ export class TallyService {
         if (stock) {
           stock.name = name;
           stock.parent = this.getValue(item.parent);
+          stock.group = this.getValue(item.parent) || this.getValue(item.group);
+          stock.category = this.getValue(item.category);
           stock.base_units = this.getValue(item.baseunits);
           stock.hsn = this.getValue(item.hsn);
           stock.closing_balance = this.getValue(item.closingbalance);

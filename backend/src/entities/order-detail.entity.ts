@@ -52,4 +52,10 @@ export class OrderDetail {
 
   @Column({ nullable: true })
   livestock_type: string;
+
+  @Column({ nullable: true })
+  parent: string;
+
+  @Column({ nullable: true })
+  group: string;
 }

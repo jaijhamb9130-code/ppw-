@@ -12,6 +12,12 @@ export class StockItem {
   parent: string;
 
   @Column({ nullable: true })
+  group: string;
+
+  @Column({ nullable: true })
+  category: string;
+
+  @Column({ nullable: true })
   base_units: string;
 
   @Column({ nullable: true })

@@ -22,6 +22,7 @@ interface Order {
     customer_gstin?: string;
     order_type?: string;
     remark?: string;
+    amount_given?: string | number;
 }
 
 interface OrderDetail {
@@ -38,6 +39,7 @@ interface OrderDetail {
     gst: string;
     selected_scheme: string;
     discount_percentage: string;
+    livestock_type?: string;
 }
 
 export default function OrderDetail() {
@@ -192,9 +194,16 @@ export default function OrderDetail() {
                                 {index + 1}
                             </span>
                             <div className="flex-1 pr-2 min-w-0">
-                                <h4 className="font-bold text-slate-800 text-xs leading-snug truncate">
-                                    {item.stock_item?.name || item.item_name || "Unknown Item"}
-                                </h4>
+                                <div className="flex items-start gap-1.5 flex-wrap">
+                                    <h4 className="font-bold text-slate-800 text-xs leading-snug">
+                                        {item.stock_item?.name || item.item_name || "Unknown Item"}
+                                    </h4>
+                                    {item.livestock_type && (
+                                        <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100 whitespace-nowrap">
+                                            {['Pb', 'Pan'].includes(item.livestock_type) ? 'PB' : item.livestock_type}
+                                        </span>
+                                    )}
+                                </div>
                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[10px] text-slate-500 font-medium">
                                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-bold">{item.quantity} {item.unit}</span>
                                         <span>x</span>
@@ -227,6 +236,23 @@ export default function OrderDetail() {
 
             {/* 3. Footer - Compact & Fixed above Nav */}
             <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-slate-200 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-30">
+                {order.amount_given && parseFloat(order.amount_given.toString()) > 0 && (
+                    <div className="space-y-1 mb-3 pt-2 border-t border-slate-100">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                            <span className="text-slate-400 uppercase tracking-widest">Amount Taken</span>
+                            <span className="text-slate-700">₹{Math.round(parseFloat(order.total_amount)).toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                            <span className="text-slate-400 uppercase tracking-widest">Amount Given</span>
+                            <span className="text-slate-700">₹{parseFloat(order.amount_given.toString()).toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] font-black border-t border-dashed border-slate-200 pt-1 mt-1">
+                            <span className="text-emerald-500 uppercase tracking-tighter">Return to Customer</span>
+                            <span className="text-emerald-600">₹{Math.abs(Math.round(parseFloat(order.amount_given.toString()) - parseFloat(order.total_amount))).toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex justify-between items-end mb-3">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Amount</span>
                     <div className="text-xl font-black text-slate-900 leading-none">

@@ -1,24 +1,16 @@
 import { useState, useEffect } from 'react';
-import { getUsers, createUser, deleteUser, updateUser, getUser } from '../api';
-import { Shield, Plus, Trash2, X, Edit2 } from 'lucide-react';
+import { getUsers, createUser, deleteUser, updateUser } from '../api';
+import { Plus, Trash2, X, Edit2 } from 'lucide-react';
 
 export default function AdminProfile() {
-    const [activeTab, setActiveTab] = useState<'profile' | 'staff'>('profile');
     const [users, setUsers] = useState<any[]>([]);
-
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingUserId, setEditingUserId] = useState<number | null>(null);
-
-    // Form States
     const [newUser, setNewUser] = useState({ username: '', password: '', name: '', number: '', role: 'employee' });
 
-    const currentUser = getUser();
-
     useEffect(() => {
-        if (activeTab === 'staff') {
-            fetchUsers();
-        }
-    }, [activeTab]);
+        fetchUsers();
+    }, []);
 
     const fetchUsers = async () => {
         try {
@@ -38,14 +30,11 @@ export default function AdminProfile() {
     const handleSaveUser = async () => {
         try {
             if (editingUserId) {
-                // Update
                 const updatePayload: any = { ...newUser };
-                if (!updatePayload.password) delete updatePayload.password; // Don't send empty password
-
+                if (!updatePayload.password) delete updatePayload.password;
                 await updateUser(editingUserId, updatePayload);
                 alert('User updated!');
             } else {
-                // Create
                 await createUser(newUser);
                 alert('User created!');
             }
@@ -61,7 +50,7 @@ export default function AdminProfile() {
         setEditingUserId(user.id);
         setNewUser({
             username: user.username,
-            password: '', // Keep blank to imply "unchanged"
+            password: '',
             name: user.name || '',
             number: user.number || '',
             role: user.role
@@ -83,106 +72,55 @@ export default function AdminProfile() {
         <div className="p-6 space-y-6 pb-24">
             <div className="flex items-center gap-3 mb-2">
                 <img src="/ppw-logo.png" alt="Logo" className="w-10 h-10 object-contain" />
-                <h2 className="text-3xl font-bold text-slate-800">Admin Profile</h2>
+                <h2 className="text-3xl font-bold text-slate-800">Roles Management</h2>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-slate-200">
-                <button
-                    onClick={() => setActiveTab('profile')}
-                    className={`pb-3 px-1 font-medium text-sm transition-colors relative ${activeTab === 'profile' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    My Profile
-                    {activeTab === 'profile' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
-                </button>
-                <button
-                    onClick={() => setActiveTab('staff')}
-                    className={`pb-3 px-1 font-medium text-sm transition-colors relative ${activeTab === 'staff' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Staff Management
-                    {activeTab === 'staff' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
-                </button>
-            </div>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <p className="text-sm text-slate-500">Manage access and roles.</p>
+                    <button
+                        onClick={() => { resetForm(); setShowAddModal(true); }}
+                        className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl flex items-center gap-2 text-sm shadow-lg shadow-indigo-200 active:scale-95 transition-transform"
+                    >
+                        <Plus size={18} />
+                        Add Staff
+                    </button>
+                </div>
 
-            {/* Content */}
-            <div className="animate-fade-in">
-                {activeTab === 'profile' && (
-                    <div className="space-y-6 max-w-md">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <Shield size={20} className="text-indigo-600" />
-                                Account Details
-                            </h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase">Username</label>
-                                    <p className="font-medium text-slate-800">{currentUser.username}</p>
+                <div className="space-y-3">
+                    {users.map((user) => (
+                        <div key={user.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-lg uppercase">
+                                    {user.username.charAt(0)}
                                 </div>
-                                <div className="pt-4 border-t border-slate-100">
-                                    <h4 className="text-sm font-bold text-slate-700 mb-3">Change Password</h4>
-                                    <input
-                                        type="password"
-                                        placeholder="New Password"
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 transition-colors"
-                                    />
-                                    <button className="mt-3 w-full py-3 bg-slate-900 text-white font-bold rounded-xl active:scale-95 transition-transform">
-                                        Update Password
-                                    </button>
+                                <div>
+                                    <p className="font-bold text-slate-800">{user.name || user.username}</p>
+                                    <p className="text-xs text-slate-500 capitalize flex items-center gap-1">
+                                        {user.role} <span className="text-slate-300">•</span> {user.number || 'No Phone'}
+                                    </p>
                                 </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleEditClick(user)}
+                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                >
+                                    <Edit2 size={18} />
+                                </button>
+                                {user.username !== 'admin' && (
+                                    <button
+                                        onClick={() => handleDeleteUser(user.id)}
+                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete User"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-
-                {activeTab === 'staff' && (
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <p className="text-sm text-slate-500">Manage access and roles.</p>
-                            <button
-                                onClick={() => { resetForm(); setShowAddModal(true); }}
-                                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl flex items-center gap-2 text-sm shadow-lg shadow-indigo-200 active:scale-95 transition-transform"
-                            >
-                                <Plus size={18} />
-                                Add Staff
-                            </button>
-                        </div>
-
-                        <div className="space-y-3">
-                            {users.map((user) => (
-                                <div key={user.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold text-lg uppercase">
-                                            {user.username.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-slate-800">{user.name || user.username}</p>
-                                            <p className="text-xs text-slate-500 capitalize flex items-center gap-1">
-                                                {user.role} <span className="text-slate-300">•</span> {user.number || 'No Phone'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleEditClick(user)}
-                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                        >
-                                            <Edit2 size={18} />
-                                        </button>
-                                        {user.username !== 'admin' && (
-                                            <button
-                                                onClick={() => handleDeleteUser(user.id)}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete User"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                    ))}
+                </div>
             </div>
 
             {/* Add/Edit User Modal */}
@@ -209,7 +147,7 @@ export default function AdminProfile() {
                                         value={newUser.username}
                                         onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500"
-                                        disabled={!!editingUserId} // Prevent username change
+                                        disabled={!!editingUserId}
                                     />
                                 </div>
                                 <div className="space-y-1">

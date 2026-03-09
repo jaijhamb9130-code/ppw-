@@ -3,7 +3,7 @@ import { getStockItems, syncStockItems } from '../api';
 import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw } from 'lucide-react';
 
 interface StockItem {
-    id: number;
+    masterid: string;
     name: string;
     parent: string;
     base_units: string;
@@ -56,7 +56,7 @@ export default function StockReport() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, totalPages: 0 });
-    const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [isSyncing, setIsSyncing] = useState(false);
 
     const fetchData = useCallback(async (page: number, search: string) => {
@@ -108,7 +108,7 @@ export default function StockReport() {
         }
     };
 
-    const toggleExpand = (id: number) => {
+    const toggleExpand = (id: string) => {
         const newExpanded = new Set(expandedIds);
         if (newExpanded.has(id)) {
             newExpanded.delete(id);
@@ -167,12 +167,12 @@ export default function StockReport() {
                     <div className="text-center py-10 text-slate-400">No products found.</div>
                 ) : (
                     items.map(item => {
-                        const isExpanded = expandedIds.has(item.id);
+                        const isExpanded = expandedIds.has(item.masterid);
                         return (
-                            <div key={item.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                            <div key={item.masterid} className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                                 <div
                                     className="p-3 flex justify-between items-start cursor-pointer hover:bg-slate-50 relative"
-                                    onMouseDown={() => toggleExpand(item.id)}
+                                    onMouseDown={() => toggleExpand(item.masterid)}
                                 >
                                     <div className="flex-1 min-w-0 pr-2">
                                         <div className="flex items-center gap-1.5 mb-1">

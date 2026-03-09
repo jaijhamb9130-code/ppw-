@@ -11,17 +11,14 @@ export default defineConfig({
     allowedHosts: ['transnational-cherly-hallucinational.ngrok-free.dev'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3010',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
       '/auth': {
-        target: 'http://localhost:3010',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },
-  },
-  esbuild: {
-    drop: ['console', 'debugger'],
   },
   plugins: [
     react(),

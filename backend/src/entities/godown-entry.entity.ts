@@ -34,7 +34,7 @@ export class GodownEntry {
 
   // Relation Removed as per user request (Decoupled)
   @Column({ nullable: true })
-  item_id: number;
+  item_id: string;
 
   @Column()
   item_name: string; // Storing name for easier display

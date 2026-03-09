@@ -44,6 +44,72 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  @Get('dashboard/stats')
+  async getDashboardStats() {
+    const today = new Date();
+    // Convert to IST offset (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(today.getTime() + istOffset);
+    const todayStr = `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
+
+    // Current financial year: April 1 to March 31
+    const fyStart = today.getMonth() >= 3
+      ? `${today.getFullYear()}-04-01`
+      : `${today.getFullYear() - 1}-04-01`;
+
+    // Today's orders count and total sales
+    const todayStats = await this.orderRepo
+      .createQueryBuilder('order')
+      .select('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(order.total_amount), 0)', 'total')
+      .where('order.date = :todayStr', { todayStr })
+      .getRawOne();
+
+    // Staff activity today
+    const staffActivity = await this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoin('order.creator', 'creator')
+      .select('creator.id', 'id')
+      .addSelect('creator.name', 'name')
+      .addSelect('creator.username', 'username')
+      .addSelect('COUNT(*)', 'bills')
+      .addSelect('COALESCE(SUM(order.total_amount), 0)', 'sales')
+      .where('order.date = :todayStr', { todayStr })
+      .groupBy('creator.id')
+      .addGroupBy('creator.name')
+      .addGroupBy('creator.username')
+      .getRawMany();
+
+    // Total ledgers
+    const ledgerCount = await this.ledgerRepo.count();
+
+    // Total active stock items
+    const stockCount = await this.stockRepo.count({ where: { is_active: true } });
+
+    // Total orders in current FY
+    const fyOrders = await this.orderRepo
+      .createQueryBuilder('order')
+      .select('COUNT(*)', 'count')
+      .where('order.date >= :fyStart', { fyStart })
+      .getRawOne();
+
+    return {
+      today: {
+        orders: parseInt(todayStats.count) || 0,
+        sales: parseFloat(todayStats.total) || 0,
+      },
+      staffActivity: staffActivity.map((s: any) => ({
+        id: s.id || 0,
+        name: s.name || s.username || 'System',
+        bills: parseInt(s.bills) || 0,
+        sales: parseFloat(s.sales) || 0,
+      })),
+      ledgerCount,
+      stockCount,
+      fyOrders: parseInt(fyOrders.count) || 0,
+    };
+  }
+
   @Post('auth/login')
   async login(@Body() body: any) {
     const user = await this.authService.validateUser(
@@ -114,6 +180,7 @@ export class AppController {
 
   @Post('orders')
   async createOrder(@Body() body: any) {
+   try {
     const {
       bill_number,
       ledger_id,
@@ -123,6 +190,7 @@ export class AppController {
       created_by,
       order_type,
       remark,
+      amount_given,
     } = body;
 
     const ledger = await this.ledgerRepo.findOneBy({ id: ledger_id });
@@ -149,6 +217,7 @@ export class AppController {
     order.total_amount = total_amount;
     order.order_type = order_type || 'Tax Invoice';
     order.remark = remark;
+    order.amount_given = amount_given;
 
     // Snapshot customer details
     if (ledger) {
@@ -187,10 +256,16 @@ export class AppController {
       orderDetail.selected_scheme = item.selected_scheme;
       orderDetail.discount_percentage = item.selected_discount;
       orderDetail.livestock_type = item.livestock_type;
+      orderDetail.parent = stockItem.parent;
+      orderDetail.group = stockItem.group;
       await this.orderDetailRepo.save(orderDetail);
     }
 
     return savedOrder;
+   } catch (error) {
+     console.error("Order Creation Error:", error);
+     throw new Error(`Order Creation failed: ${error.message} \n ${error.stack}`);
+   }
   }
 
   @Get('stock-items/barcode/:barcode')
@@ -410,6 +485,8 @@ export class AppController {
     @Query('limit') limit: string = '50',
     @Query('search') search: string = '',
     @Query('parent') parent: string = '',
+    @Query('group') group: string = '',
+    @Query('category') category: string = '',
   ) {
     try {
       const pageNum = Math.max(1, parseInt(page) || 1);
@@ -423,25 +500,49 @@ export class AppController {
         query.andWhere('stock.parent = :parent', { parent });
       }
 
+      if (group) {
+        query.andWhere('stock.group = :group', { group });
+      }
+
+      if (category) {
+        query.andWhere('stock.category = :category', { category });
+      }
+
       if (search) {
         const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
         const cleanName = this.cleanSql('stock.name');
         const cleanBarcode = this.cleanSql('stock.ats_barcode');
-        const cleanParent = this.cleanSql('stock.parent');
 
-        query.andWhere(
-          `(stock.name LIKE :search 
-            OR stock.ats_barcode LIKE :search 
-            OR stock.parent LIKE :search
-            OR ${cleanName} LIKE :cleanSearch
-            OR ${cleanBarcode} LIKE :cleanSearch
-            OR ${cleanParent} LIKE :cleanSearch
-           )`,
-          {
-            search: `%${search}%`,
-            cleanSearch: `%${cleanSearch}%`,
-          },
-        );
+        if (parent) {
+          // Strict mode: Only search in Name or Barcode when parent is already locked
+          query.andWhere(
+            `(stock.name LIKE :search 
+              OR stock.ats_barcode LIKE :search 
+              OR ${cleanName} LIKE :cleanSearch
+              OR ${cleanBarcode} LIKE :cleanSearch
+             )`,
+            {
+              search: `%${search}%`,
+              cleanSearch: `%${cleanSearch}%`,
+            },
+          );
+        } else {
+          // Global mode: Include Parent in search if no parent is selected
+          const cleanParent = this.cleanSql('stock.parent');
+          query.andWhere(
+            `(stock.name LIKE :search 
+              OR stock.ats_barcode LIKE :search 
+              OR stock.parent LIKE :search
+              OR ${cleanName} LIKE :cleanSearch
+              OR ${cleanBarcode} LIKE :cleanSearch
+              OR ${cleanParent} LIKE :cleanSearch
+             )`,
+            {
+              search: `%${search}%`,
+              cleanSearch: `%${cleanSearch}%`,
+            },
+          );
+        }
       }
 
       const [data, total] = await query
@@ -467,29 +568,81 @@ export class AppController {
 
   @Get('stock-items/parents')
   async getStockParents(@Query('search') search: string = '') {
+    return this.getStockGroups(search);
+  }
+
+  @Get('stock-items/groups')
+  async getStockGroups(@Query('search') search: string = '') {
     try {
       const query = this.stockRepo
         .createQueryBuilder('stock')
-        .select('DISTINCT stock.parent', 'parent')
-        .where("stock.parent IS NOT NULL AND stock.parent != ''");
+        .select('DISTINCT stock.group', 'group')
+        .where("stock.group IS NOT NULL AND stock.group != ''");
 
       if (search) {
         const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
-        const cleanParent = this.cleanSql('stock.parent');
-
+        const cleanGroup = this.cleanSql('stock.group');
         query.andWhere(
-          `(stock.parent LIKE :search OR ${cleanParent} LIKE :cleanSearch)`,
-          {
-            search: `%${search}%`,
-            cleanSearch: `%${cleanSearch}%`,
-          },
+          `(stock.group LIKE :search OR ${cleanGroup} LIKE :cleanSearch)`,
+          { search: `%${search}%`, cleanSearch: `%${cleanSearch}%` },
         );
       }
 
-      const result = await query.orderBy('stock.parent', 'ASC').getRawMany();
-      return result.map((r) => r.parent);
+      const result = await query.orderBy('stock.group', 'ASC').getRawMany();
+      let groups = result.map((r) => r.group);
+
+      // Fallback: If no groups found, try getting distinct parents
+      if (groups.length === 0) {
+        const parentResult = await this.stockRepo
+          .createQueryBuilder('stock')
+          .select('DISTINCT stock.parent', 'parent')
+          .where("stock.parent IS NOT NULL AND stock.parent != ''")
+          .orderBy('stock.parent', 'ASC')
+          .getRawMany();
+        groups = parentResult.map((r) => r.parent);
+      }
+
+      return groups;
     } catch (error) {
-      console.error('Error in getStockParents:', error);
+      console.error('Error in getStockGroups:', error);
+      throw error;
+    }
+  }
+
+  @Get('stock-items/categories')
+  async getStockCategories(@Query('search') search: string = '') {
+    try {
+      const query = this.stockRepo
+        .createQueryBuilder('stock')
+        .select('DISTINCT stock.category', 'category')
+        .where("stock.category IS NOT NULL AND stock.category != ''");
+
+      if (search) {
+        const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
+        const cleanCat = this.cleanSql('stock.category');
+        query.andWhere(
+          `(stock.category LIKE :search OR ${cleanCat} LIKE :cleanSearch)`,
+          { search: `%${search}%`, cleanSearch: `%${cleanSearch}%` },
+        );
+      }
+
+      const result = await query.orderBy('stock.category', 'ASC').getRawMany();
+      let categories = result.map((r) => r.category);
+
+      // Fallback: If no categories found, try getting distinct parents
+      if (categories.length === 0) {
+        const parentResult = await this.stockRepo
+          .createQueryBuilder('stock')
+          .select('DISTINCT stock.parent', 'parent')
+          .where("stock.parent IS NOT NULL AND stock.parent != ''")
+          .orderBy('stock.parent', 'ASC')
+          .getRawMany();
+        categories = parentResult.map((r) => r.parent);
+      }
+
+      return categories;
+    } catch (error) {
+      console.error('Error in getStockCategories:', error);
       throw error;
     }
   }
@@ -505,6 +658,7 @@ export class AppController {
     @Query('show_all') showAll: string = 'false',
     @Query('date') date: string = '',
     @Query('drafts_only') draftsOnly: string = 'false', // New param
+    @Query('order_type') orderType: string = '',
   ) {
     try {
       const pageNum = Math.max(1, parseInt(page) || 1);
@@ -584,6 +738,11 @@ export class AppController {
         }
       }
 
+      // Filter by order type if specified
+      if (orderType) {
+        query.andWhere('order.order_type = :orderType', { orderType });
+      }
+
       const [data, total] = await query
         .skip(skip)
         .take(limitNum)
@@ -650,7 +809,7 @@ export class AppController {
   async updateOrder(@Param('id') id: string, @Body() body: any) {
     try {
       const orderId = parseInt(id);
-      const { ledger_id, date, total_amount, items, order_type, remark } = body;
+      const { ledger_id, date, total_amount, items, order_type, remark, amount_given } = body;
 
       const order = await this.orderRepo.findOne({ where: { id: orderId } });
       if (!order) throw new Error('Order not found');
@@ -693,6 +852,7 @@ export class AppController {
       order.total_amount = total_amount;
       order.order_type = order_type || 'Tax Invoice';
       order.remark = remark;
+      order.amount_given = amount_given;
       // Reset status to 'inedit' if it was 'pending' and we edited it?
       // User logic: "they will save... this inedit". Assume edit puts it back to draft.
       order.status = 'inedit';
@@ -729,6 +889,10 @@ export class AppController {
         orderDetail.selected_scheme = item.selected_scheme;
         orderDetail.discount_percentage = item.selected_discount;
         orderDetail.livestock_type = item.livestock_type;
+        if (stockItem) {
+          orderDetail.parent = stockItem.parent;
+          orderDetail.group = stockItem.group;
+        }
         await this.orderDetailRepo.save(orderDetail);
       }
 
@@ -812,6 +976,7 @@ export class AppController {
         total_amount: order.total_amount,
         order_type: order.order_type || 'Tax Invoice',
         remark: order.remark,
+        amount_given: order.amount_given,
 
         customer: {
           name: customerName,
@@ -839,6 +1004,8 @@ export class AppController {
               discount_percentage: item.discount_percentage,
               gst: item.gst,
               godown: item.livestock_type || 'Shop',
+              parent: item.parent,
+              group: item.group,
             }))
           : [],
       };

@@ -81,6 +81,9 @@ export class Order {
   @Column({ nullable: true, type: 'text' })
   remark: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  amount_given: number;
+
   @CreateDateColumn()
   created_at: Date;
 }

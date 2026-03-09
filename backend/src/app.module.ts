@@ -14,8 +14,6 @@ import { GodownEntry } from './entities/godown-entry.entity';
 import { GodownController } from './godown.controller';
 import { TallyService } from './tally.service';
 import { AuthModule } from './auth/auth.module';
-import { Action } from 'rxjs/internal/scheduler/Action';
-
 @Module({
   imports: [
     AuthModule,
@@ -33,7 +31,7 @@ import { Action } from 'rxjs/internal/scheduler/Action';
         password: configService.get<string>('DB_PASSWORD', ''),
         database: configService.get<string>('DB_NAME', 'tally_sync'),
         entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry],
-        synchronize: true, // Auto-create tables (dev only)
+        synchronize: process.env.NODE_ENV !== 'production', // Prevent auto-create tables in production to protect data
       }),
       inject: [ConfigService],
     }),

@@ -38,6 +38,12 @@ api.interceptors.response.use(
     }
 );
 
+// Dashboard stats
+export const getDashboardStats = async () => {
+    const response = await api.get('/dashboard/stats');
+    return response.data;
+};
+
 // Separate sync endpoints
 export const syncLedgers = async () => {
     const response = await api.post('/sync/ledgers');
@@ -49,8 +55,15 @@ export const syncStockItems = async () => {
     return response.data;
 };
 
-export const getStockParents = async (search = '') => {
-    const response = await api.get('/stock-items/parents', {
+export const getStockGroups = async (search = '') => {
+    const response = await api.get('/stock-items/groups', {
+        params: { search },
+    });
+    return response.data;
+};
+
+export const getStockCategories = async (search = '') => {
+    const response = await api.get('/stock-items/categories', {
         params: { search },
     });
     return response.data;
@@ -75,9 +88,9 @@ export const getLedgers = async (page = 1, limit = 50, search = '') => {
     return response.data;
 };
 
-export const getStockItems = async (page = 1, limit = 50, search = '', parent = '') => {
+export const getStockItems = async (page = 1, limit = 50, search = '', group = '', parent = '') => {
     const response = await api.get('/reports/stock-items', {
-        params: { page, limit, search, parent },
+        params: { page, limit, search, group, parent },
     });
     return response.data;
 };
@@ -98,12 +111,12 @@ export const getItemByBarcode = async (barcode: string) => {
     return response.data;
 };
 
-export const getLiveStock = async (id: number) => {
+export const getLiveStock = async (id: string) => {
     const response = await api.get(`/stock-items/${id}/live-stock`);
     return response.data;
 };
 
-export const getOrders = async (page = 1, limit = 50, search = '') => {
+export const getOrders = async (page = 1, limit = 50, search = '', orderType = '') => {
     const user = getUser();
     const response = await api.get('/reports/orders', {
         params: {
@@ -113,10 +126,13 @@ export const getOrders = async (page = 1, limit = 50, search = '') => {
             user_id: user.id,
             role: user.role,
             show_all: 'true',
-            // Fix: Use Local Time for "Today", not UTC (which causes issues after midnight)
+            order_type: orderType || undefined,
+            // Fix: Use Local Time for "Today"
             date: (() => {
                 const d = new Date();
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const istOffset = 5.5 * 60 * 60 * 1000;
+                const istTime = new Date(d.getTime() + istOffset);
+                return `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
             })()
         },
     });

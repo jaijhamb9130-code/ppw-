@@ -123,7 +123,7 @@ export default function Godown() {
     const handleEdit = (entry: any) => {
         setEditingEntryId(entry.id);
         setActiveGodown(entry.godown);
-        setSelectedItem({ id: entry.item_id, name: entry.item_name });
+        setSelectedItem({ masterid: entry.item_id, name: entry.item_name });
         setQuantity(entry.quantity.toString());
         setMode('entry');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -135,7 +135,7 @@ export default function Godown() {
         try {
             const payload = {
                 godown: activeGodown,
-                item_id: selectedItem.id,
+                item_id: selectedItem.masterid,
                 item_name: selectedItem.name,
                 quantity: Number(quantity)
             };
@@ -228,7 +228,7 @@ export default function Godown() {
                             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto p-2 z-50">
                                 {searchResults.map((item) => (
                                     <div
-                                        key={item.id}
+                                        key={item.masterid}
                                         onClick={() => handleSelect(item)}
                                         className="p-4 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center group border-b border-slate-50 last:border-0"
                                     >

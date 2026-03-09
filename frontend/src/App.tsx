@@ -148,7 +148,7 @@ function Layout() {
 
                <NavLink to="/create-order" icon={Plus} label="New" />
                {isAdmin && (
-                 <NavLink to="/profile" icon={Users} label="Profile" />
+                 <NavLink to="/profile" icon={Users} label="Roles" />
                )}
             </div>
           </nav>
