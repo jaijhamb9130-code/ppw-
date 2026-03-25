@@ -1,0 +1,92 @@
+
+> backend@0.0.1 start:dev
+> nest start --watch
+
+[2J[3J[H[[90m1:37:42 pm[0m] Starting compilation in watch mode...
+
+[[90m1:37:46 pm[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +28ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDiscoveryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:49 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mScheduleModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +609ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +3ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/api}:[39m[38;5;3m +16ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api, GET} route[39m[38;5;3m +9ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/dashboard/stats, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/login, POST} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/register, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ledgers, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/orders, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/stock-items/barcode/:barcode, GET} route[39m[38;5;3m +3ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/stock-items/live-stock, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/sync/ledgers, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/sync/stock-items, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/version, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/reports/ledgers, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/reports/stock-items, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/stock-items/parents, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/stock-items/groups, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/stock-items/categories, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/reports/orders, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/orders/:id, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/orders/:id/details, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/orders/:id, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/orders/:id, PUT} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/orders/:id/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tally/pending-orders, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tally/confirm-orders, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/tally/confirm-orders, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUserController {/api/users}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/profile, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mGodownController {/api/godown}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/godown/entries, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/godown/entries, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/godown/entries/:id, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 18228  - [39m24/03/2026, 1:37:50 pm [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +226ms[39m
+Application is running on: http://localhost:3000
+Global Prefix: api
+[32m[Nest] 18228  - [39m24/03/2026, 2:00:00 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mExecuting scheduled Tally Sync (Hourly)...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:00:00 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching Ledgers from Tally...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:00:14 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 14679 ledgers.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:02:09 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mSaved 14679 ledgers.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:02:09 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching Stock Items from Tally...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:02:09 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 0 stock items in Tally response.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:02:09 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mProcessed 0 items. Saved/Updated: 0[39m
+[LiveStock] Fetching for item: "000317 Silky Lace Single Colour 24"" (MasterID: 34122)
+[32m[Nest] 18228  - [39m24/03/2026, 2:03:37 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching live godown stock for item: 000317 Silky Lace Single Colour 24"...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:03:37 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFixed 3 invalid JSON objects[39m
+[32m[Nest] 18228  - [39m24/03/2026, 2:03:37 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 3 godown batch entries for 000317 Silky Lace Single Colour 24".[39m
+[LiveStock] Received 3 entries from Tally.
+[32m[Nest] 18228  - [39m24/03/2026, 3:00:00 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mExecuting scheduled Tally Sync (Hourly)...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:00:00 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching Ledgers from Tally...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:00:25 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 14680 ledgers.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:02:01 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mSaved 14680 ledgers.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:02:01 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching Stock Items from Tally...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:02:02 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFixed 6 invalid JSON objects[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:02:02 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 1 stock items in Tally response.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:02:02 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mAcknowledged batch of 1 items to Tally.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 3:02:02 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mProcessed 1 items. Saved/Updated: 1[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:00:00 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mExecuting scheduled Tally Sync (Hourly)...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:00:00 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching Ledgers from Tally...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:00:13 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 14681 ledgers.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:01:58 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mSaved 14681 ledgers.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:01:58 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFetching Stock Items from Tally...[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:01:59 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFixed 6 invalid JSON objects[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:01:59 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mFound 1 stock items in Tally response.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:01:59 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mAcknowledged batch of 1 items to Tally.[39m
+[32m[Nest] 18228  - [39m24/03/2026, 4:01:59 pm [32m    LOG[39m [38;5;3m[TallyService] [39m[32mProcessed 1 items. Saved/Updated: 1[39m

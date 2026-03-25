@@ -196,3 +196,21 @@ tbody tr:hover td {
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+@keyframes scan-line {
+  0% { top: 0% }
+  100% { top: 100% }
+}
+
+.animate-scan-line {
+  position: absolute;
+  animation: scan-line 2s linear infinite;
+}
+
+#barcode-scanner > div:nth-child(2) {
+    display: none !important;
+}
+
+#barcode-scanner canvas {
+    display: none !important;
+}

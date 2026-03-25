@@ -50,6 +50,8 @@ export default function OrderDetail() {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [showRemark, setShowRemark] = useState(false);
+    const [showSettlementPopup, setShowSettlementPopup] = useState(false);
+    const [selectedItemForDetail, setSelectedItemForDetail] = useState<OrderDetail | null>(null);
 
     useEffect(() => {
         if (id) {
@@ -189,14 +191,18 @@ export default function OrderDetail() {
                 <div className="space-y-1.5">
                     <h3 className="px-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Items ({items.length})</h3>
                     {items.map((item, index) => (
-                        <div key={item.id} className="bg-white p-2.5 rounded-lg border border-slate-200 flex items-start gap-2">
+                        <div 
+                            key={item.id} 
+                            onClick={() => setSelectedItemForDetail(item)}
+                            className="bg-white p-2.5 rounded-lg border border-slate-200 flex items-start gap-2 active:scale-[0.98] transition-all hover:border-slate-300 cursor-pointer shadow-sm"
+                        >
                             <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 h-fit mt-0.5">
                                 {index + 1}
                             </span>
                             <div className="flex-1 pr-2 min-w-0">
                                 <div className="flex items-start gap-1.5 flex-wrap">
                                     <h4 className="font-bold text-slate-800 text-xs leading-snug">
-                                        {item.stock_item?.name || item.item_name || "Unknown Item"}
+                                        {item.item_name || item.stock_item?.name || "Unknown Item"}
                                     </h4>
                                     {item.livestock_type && (
                                         <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100 whitespace-nowrap">
@@ -225,8 +231,8 @@ export default function OrderDetail() {
                             </div>
                             <div className="text-right flex-shrink-0">
                                 <span className="block font-bold text-slate-900 text-sm">₹{Math.round(parseFloat(item.amount)).toLocaleString('en-IN')}</span>
-                                <span className="text-[9px] text-slate-400 font-medium">
-                                    {parseFloat(item.gst) > 0 ? `${item.gst}% GST Included` : 'GST Exempted'}
+                                <span className="text-[10px] text-slate-500 font-bold bg-slate-50 px-1 rounded border border-slate-100">
+                                    {parseFloat(item.gst) > 0 ? `${item.gst}% GST` : 'GST Exempt'}
                                 </span>
                             </div>
                         </div>
@@ -236,27 +242,23 @@ export default function OrderDetail() {
 
             {/* 3. Footer - Compact & Fixed above Nav */}
             <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-slate-200 p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-30">
-                {order.amount_given && parseFloat(order.amount_given.toString()) > 0 && (
-                    <div className="space-y-1 mb-3 pt-2 border-t border-slate-100">
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="text-slate-400 uppercase tracking-widest">Amount Taken</span>
-                            <span className="text-slate-700">₹{Math.round(parseFloat(order.total_amount)).toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="text-slate-400 uppercase tracking-widest">Amount Given</span>
-                            <span className="text-slate-700">₹{parseFloat(order.amount_given.toString()).toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] font-black border-t border-dashed border-slate-200 pt-1 mt-1">
-                            <span className="text-emerald-500 uppercase tracking-tighter">Return to Customer</span>
-                            <span className="text-emerald-600">₹{Math.abs(Math.round(parseFloat(order.amount_given.toString()) - parseFloat(order.total_amount))).toLocaleString('en-IN')}</span>
-                        </div>
+                <div 
+                    onClick={() => order?.amount_given && setShowSettlementPopup(true)}
+                    className={`flex justify-between items-end mb-3 p-2 -mx-2 rounded-xl transition-colors ${order?.amount_given ? 'hover:bg-slate-50 cursor-pointer' : ''}`}
+                >
+                    <div className="space-y-0.5">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                            Total Amount
+                            {order?.amount_given && parseFloat(order.amount_given.toString()) > 0 && (
+                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Settled</span>
+                            )}
+                        </span>
+                        {order?.amount_given && parseFloat(order.amount_given.toString()) > 0 && (
+                            <p className="text-[10px] font-black text-slate-400">Tap to view settlement</p>
+                        )}
                     </div>
-                )}
-
-                <div className="flex justify-between items-end mb-3">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Amount</span>
                     <div className="text-xl font-black text-slate-900 leading-none">
-                        ₹{Math.round(parseFloat(order.total_amount)).toLocaleString('en-IN')}
+                        ₹{Math.round(parseFloat(order?.total_amount || '0')).toLocaleString('en-IN')}
                     </div>
                 </div>
 
@@ -271,7 +273,7 @@ export default function OrderDetail() {
                                 <span className="text-[10px] uppercase">Delete</span>
                             </button>
                             <button
-                                onClick={() => navigate(`/orders/edit/${order.id}`)}
+                                onClick={() => navigate(`/orders/edit/${order?.id}`)}
                                 className="py-2.5 font-bold rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
                             >
                                 <Edit size={16} />
@@ -285,59 +287,111 @@ export default function OrderDetail() {
                         className={`py-2.5 font-bold rounded-lg active:scale-95 transition-transform flex items-center justify-center gap-1.5 shadow-sm text-white flex-1 ${isLocked ? 'bg-slate-400 shadow-none cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                     >
                         {syncing ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Share2 size={16} />}
-                        <span className="text-[10px] uppercase">{order.status === 'pending' ? 'Shared with Tally' : order.status === 'fetched' ? 'Synced with Tally' : 'Share Tally'}</span>
+                        <span className="text-[10px] uppercase">{order?.status === 'pending' ? 'Shared with Tally' : order?.status === 'fetched' ? 'Synced with Tally' : 'Share Tally'}</span>
                     </button>
                 </div>
             </div>
 
 
-            {/* Remark FAB */}
-            {order.remark && (
-                <>
-                    <button
-                        onClick={() => setShowRemark(true)}
-                        className="fixed bottom-40 right-4 z-40 p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 active:scale-95 transition-all animate-fade-in"
-                        title="View Remark"
-                    >
-                        <MessageSquare size={24} />
-                    </button>
-
-                    {/* Remark Modal/Overlay */}
-                    {showRemark && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowRemark(false)}>
-                            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm relative" onClick={e => e.stopPropagation()}>
-                                <button 
-                                    onClick={() => setShowRemark(false)}
-                                    className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    <X size={20} />
-                                </button>
-                                
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-full">
-                                            <MessageSquare size={24} />
-                                        </div>
-                                        <h3 className="text-lg font-bold text-slate-800">Order Remark</h3>
-                                    </div>
-                                    
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 font-medium leading-relaxed">
-                                        {order.remark}
-                                    </div>
-                                    
-                                    <button
-                                        onClick={() => setShowRemark(false)}
-                                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors"
-                                    >
-                                        Close
-                                    </button>
-                                </div>
+            {/* Remark Modal */}
+            {showRemark && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowRemark(false)}>
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm relative" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setShowRemark(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-full"><MessageSquare size={24} /></div>
+                                <h3 className="text-lg font-bold text-slate-800">Order Remark</h3>
                             </div>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 font-medium leading-relaxed">{order?.remark}</div>
                         </div>
-                    )}
-                </>
+                    </div>
+                </div>
             )}
 
+            {/* Settlement Popup */}
+            {showSettlementPopup && order && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowSettlementPopup(false)}>
+                    <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl p-6 pb-8 w-full max-w-md relative animate-in slide-in-from-bottom-5 mb-[56px] sm:mb-0" onClick={e => e.stopPropagation()}>
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden" />
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-6">Settlement Details</h3>
+                        
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center text-sm font-bold p-4 bg-slate-50 rounded-xl border border-slate-100 text-slate-500">
+                                <span>Bill Amount</span>
+                                <span className="text-slate-900">₹{Math.round(parseFloat(order.total_amount)).toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm font-bold p-4 bg-slate-50 rounded-xl border border-slate-100 text-slate-500">
+                                <span>AMOUNT Taken</span>
+                                <span className="text-slate-900">₹{parseFloat(order.amount_given?.toString() || '0').toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-lg font-black p-5 bg-emerald-50 rounded-xl border-2 border-emerald-100 text-emerald-600 shadow-sm shadow-emerald-100/50">
+                                <span>RETURN TO CUSTOMER</span>
+                                <span>₹{Math.abs(Math.round(parseFloat(order.amount_given?.toString() || '0') - parseFloat(order.total_amount))).toLocaleString('en-IN')}</span>
+                            </div>
+                        </div>
+                        
+                        <button onClick={() => setShowSettlementPopup(false)} className="w-full mt-6 py-4 bg-slate-900 text-white font-black rounded-xl">GOT IT</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Item Detail Modal */}
+            {selectedItemForDetail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedItemForDetail(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                        <div className="bg-[#A36E4E] p-4 flex justify-between items-center">
+                            <h3 className="text-white font-black uppercase text-xs tracking-widest">Item Details</h3>
+                            <button onClick={() => setSelectedItemForDetail(null)} className="text-white/80 hover:text-white"><X size={20} /></button>
+                        </div>
+                        
+                        <div className="p-5 space-y-6">
+                            <div>
+                                <h4 className="text-lg font-black text-slate-800 leading-tight mb-1">{selectedItemForDetail.item_name || selectedItemForDetail.stock_item?.name}</h4>
+                                <div className="flex gap-2">
+                                    {selectedItemForDetail.livestock_type && (
+                                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-tight">
+                                            {selectedItemForDetail.livestock_type} Stock
+                                        </span>
+                                    )}
+                                    {parseFloat(selectedItemForDetail.discount_percentage) > 0 && (
+                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                            {selectedItemForDetail.discount_percentage}% OFF
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Quantity</span>
+                                    <span className="text-base font-black text-slate-800">{selectedItemForDetail.quantity} {selectedItemForDetail.unit}</span>
+                                </div>
+                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Rate</span>
+                                    <span className="text-base font-black text-slate-800">₹{parseFloat(selectedItemForDetail.rate).toLocaleString('en-IN')}</span>
+                                </div>
+                                {selectedItemForDetail.stock_item?.default_mrp && (
+                                    <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 col-span-2">
+                                        <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block mb-1">MRP Reference</span>
+                                        <span className="text-base font-black text-indigo-600">₹{selectedItemForDetail.stock_item.default_mrp}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="border-t border-slate-100 pt-5">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold text-slate-500">Item Total</span>
+                                    <span className="text-xl font-black text-slate-900">₹{Math.round(parseFloat(selectedItemForDetail.amount)).toLocaleString('en-IN')}</span>
+                                </div>
+                                <p className="text-[10px] text-right font-black text-slate-400 mt-1 uppercase tracking-widest">
+                                    {parseFloat(selectedItemForDetail.gst) > 0 ? `${selectedItemForDetail.gst}% GST Included` : 'Tax Free / Exempted'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

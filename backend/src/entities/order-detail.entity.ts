@@ -3,10 +3,8 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
-  JoinColumn,
 } from 'typeorm';
 import { Order } from './order.entity';
-import { StockItem } from './stock-item.entity';
 
 @Entity()
 export class OrderDetail {
@@ -16,12 +14,8 @@ export class OrderDetail {
   @ManyToOne(() => Order)
   order: Order;
 
-  @ManyToOne(() => StockItem)
-  @JoinColumn({ name: 'stock_item_id' })
-  stock_item: StockItem;
-
-  @Column({ type: 'varchar', nullable: true })
-  stock_item_id: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stock_item_id: string | null;
 
   @Column({ nullable: true })
   item_name: string;
@@ -58,4 +52,7 @@ export class OrderDetail {
 
   @Column({ nullable: true })
   group: string;
+
+  @Column({ nullable: true })
+  category: string;
 }

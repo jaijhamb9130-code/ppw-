@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Loader, Search, FileText, Calendar, ArrowRight, Trash2, LogOut } from 'lucide-react';
-import { getOrders, deleteOrder, getUser, syncOrderToTally } from '../api';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Loader, Search, FileText, Calendar, ArrowRight, Trash2, LogOut, X, User as UserIcon, ChevronDown } from 'lucide-react';
+import { getOrders, deleteOrder, syncOrderToTally, getUser } from '../api';
 
 // Define interfaces locally if not exported from api
 interface Order {
@@ -17,16 +17,32 @@ interface Order {
 
 const ORDER_FILTERS = [
     { label: 'All', value: '', category: 'all' },
+    { label: 'InEdit', value: 'inedit', category: 'status' },
     { label: 'Pending', value: 'pending', category: 'status' },
     { label: 'Completed', value: 'fetched', category: 'status' },
-    { label: 'Quotation', value: 'Quotation', category: 'type' },
     { label: 'Tax Invoice', value: 'Tax Invoice', category: 'type' },
+    { label: 'Quotation', value: 'Quotation', category: 'type' },
 ];
 
 export default function OrderReport() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const userId = searchParams.get('userId');
+    const userName = searchParams.get('userName');
+    const userRole = getUser()?.role;
+    const isAdmin = userRole === 'admin';
+
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        const query = new URLSearchParams(window.location.search);
+        if (query.get('range') === 'fy') return '';
+        
+        const d = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istTime = new Date(d.getTime() + istOffset);
+        return `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
+    });
     const [activeFilter, setActiveFilter] = useState({ value: '', category: 'all' });
     const [pagination, setPagination] = useState({
         page: 1,
@@ -35,26 +51,21 @@ export default function OrderReport() {
         totalPages: 0
     });
 
-    const fetchOrders = async (page = 1, search = '', filter = activeFilter) => {
+    const fetchOrders = async (page = 1, search = '', filter = activeFilter, date = selectedDate) => {
         setLoading(true);
         try {
-            const params: any = { page, limit: pagination.limit, search };
-            if (filter.category === 'type') params.order_type = filter.value;
-            if (filter.category === 'status') params.status = filter.value;
+            const data = await getOrders(
+                page, 
+                pagination.limit, 
+                search, 
+                filter.category === 'type' ? filter.value : '', 
+                userId ? parseInt(userId) : undefined,
+                date,
+                searchParams.get('range') || '',
+                filter.category === 'status' ? filter.value : ''
+            );
             
-            const data = await getOrders(page, pagination.limit, search, params.order_type);
-            
-            // If filtering by status, we might need a separate API or client-side filter
-            // But let's check if the getOrders API supports status
-            let filteredData = data.data;
-            if (filter.category === 'status') {
-                // If backend doesn't support status param yet, filter client-side for now
-                // but checking api.ts it seems getOrders takes orderType.
-                // Let's assume we might need to filter manually if status isn't a backend param.
-                filteredData = data.data.filter((o: any) => o.status === filter.value);
-            }
-
-            setOrders(filteredData);
+            setOrders(data.data);
             setPagination({
                 page: data.pagination.page,
                 limit: data.pagination.limit,
@@ -69,8 +80,13 @@ export default function OrderReport() {
     };
 
     useEffect(() => {
-        fetchOrders(1, '');
-    }, []);
+        const range = searchParams.get('range');
+        if (range === 'fy') {
+            fetchOrders(1, searchTerm, activeFilter, '');
+        } else {
+            fetchOrders(1, searchTerm, activeFilter, selectedDate);
+        }
+    }, [userId, selectedDate, activeFilter, searchParams]);
 
     // Debounce search
     useEffect(() => {
@@ -80,9 +96,24 @@ export default function OrderReport() {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
+    const updateDate = (date: string) => {
+        if (searchParams.get('range')) {
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('range');
+            setSearchParams(newParams);
+        }
+        setSelectedDate(date);
+    };
+
     const handleFilterChange = (filter: { value: string, category: string }) => {
         setActiveFilter(filter);
-        fetchOrders(1, searchTerm, filter);
+    };
+
+    const clearUserFilter = () => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('userId');
+        newParams.delete('userName');
+        setSearchParams(newParams);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -127,63 +158,121 @@ export default function OrderReport() {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 min-h-screen pb-20">
-            {/* Simple Header */}
-            <div className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-20 shadow-sm">
-                <div className="flex justify-between items-center mb-3">
+            {/* Refined Header */}
+            <div className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-20 shadow-sm space-y-3">
+                {/* Row 1: Logo and Logout */}
+                <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <img src="/ppw-logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-                        <h1 className="text-xl font-bold text-slate-800">Day Book</h1>
+                        <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                            <img src="/ppw-logo.png" alt="Logo" className="w-5 h-5 object-contain" />
+                        </div>
+                        <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Day Book</h1>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                            {pagination.total} Orders
-                        </span>
+                    <button
+                        onClick={() => {
+                            if (confirm('Are you sure you want to log out?')) {
+                                localStorage.removeItem('token');
+                                localStorage.removeItem('user');
+                                window.location.href = '/login';
+                            }
+                        }}
+                        className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all border border-red-100/50 shadow-sm active:scale-90"
+                    >
+                        <LogOut size={18} />
+                    </button>
+                </div>
 
-                        {getUser().role === 'employee' && (
-                            <button
+                {/* Row 2: Filter + Date Selector and Order Count */}
+                <div className="flex items-center gap-2">
+                    {/* Status Filter Dropdown */}
+                    <div className="relative flex-shrink-0">
+                        <select 
+                            className="appearance-none bg-orange-50/50 border border-orange-100 text-orange-700 text-[11px] font-black pl-3 pr-8 py-2 rounded-xl outline-none focus:ring-2 focus:ring-orange-100 transition-all uppercase tracking-tight shadow-sm"
+                            value={JSON.stringify(activeFilter)}
+                            onChange={(e) => {
+                                try {
+                                    const val = JSON.parse(e.target.value);
+                                    handleFilterChange(val);
+                                } catch (e) {
+                                    console.error('Failed to parse filter value', e);
+                                }
+                            }}
+                        >
+                            {ORDER_FILTERS.map(f => (
+                                <option key={`${f.category}-${f.value}`} value={JSON.stringify({ value: f.value, category: f.category })}>
+                                    {f.label}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-orange-400">
+                             <ChevronDown size={14} />
+                        </div>
+                    </div>
+
+                    {isAdmin && (
+                        <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-1.5 gap-2 shadow-sm flex-1 min-w-0">
+                            <button 
                                 onClick={() => {
-                                    if (confirm('Are you sure you want to log out?')) {
-                                        localStorage.removeItem('token');
-                                        localStorage.removeItem('user');
-                                        window.location.href = '/login';
-                                    }
+                                    const d = new Date();
+                                    const istOffset = 5.5 * 60 * 60 * 1000;
+                                    const istTime = new Date(d.getTime() + istOffset);
+                                    const today = `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
+                                    updateDate(today);
                                 }}
-                                className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100 transition-colors"
+                                className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 hover:bg-amber-100 transition-colors uppercase flex-shrink-0 shadow-sm"
                             >
-                                <LogOut size={12} />
-                                Log Out
+                                Today
                             </button>
-                        )}
+                            <div className="flex items-center flex-1 min-w-0 pr-1">
+                                <input
+                                    type="date"
+                                    className="bg-transparent text-[11px] font-bold text-slate-700 outline-none w-full"
+                                    value={selectedDate}
+                                    onChange={(e) => updateDate(e.target.value)}
+                                />
+                                {selectedDate && (
+                                    <button onClick={() => updateDate('')} className="ml-1 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full">
+                                        <X size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-slate-900 text-white rounded-xl flex-shrink-0 flex items-center gap-1.5 px-3 py-2 shadow-sm">
+                        <span className="text-sm font-black tracking-tighter">{pagination.total}</span>
+                        <span className="text-[9px] font-bold opacity-60 uppercase tracking-widest">Bills</span>
                     </div>
                 </div>
-                {/* Search Bar */}
-                <div className="relative mb-2">
-                    <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+
+                {/* Row 3: Search */}
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
-                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-indigo-50 outline-none"
-                        placeholder="Search by Bill No or Customer..."
+                        className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-100 outline-none shadow-inner"
+                        placeholder="Search Bill or Customer..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onKeyDown={handleKeyPress}
                     />
                 </div>
-                {/* Order Type Filter Chips */}
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {ORDER_FILTERS.map((f) => (
-                        <button
-                            key={f.label}
-                            onClick={() => handleFilterChange({ value: f.value, category: f.category })}
-                            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors whitespace-nowrap ${
-                                activeFilter.value === f.value && activeFilter.category === f.category
-                                    ? 'bg-indigo-600 text-white shadow-sm'
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-transparent'
-                            }`}
+
+                {/* Staff Filter Chip */}
+                {userId && (
+                    <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-3 py-2 rounded-xl">
+                        <UserIcon size={14} className="text-indigo-600" />
+                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-tight">
+                            Viewing: {userName || 'Selected User'}
+                        </span>
+                        <button 
+                            onClick={clearUserFilter}
+                            className="ml-auto p-1 bg-white text-indigo-400 hover:text-indigo-600 rounded-full shadow-sm"
                         >
-                            {f.label}
+                            <X size={12} />
                         </button>
-                    ))}
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* List */}

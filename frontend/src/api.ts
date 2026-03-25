@@ -88,9 +88,9 @@ export const getLedgers = async (page = 1, limit = 50, search = '') => {
     return response.data;
 };
 
-export const getStockItems = async (page = 1, limit = 50, search = '', group = '', parent = '') => {
+export const getStockItems = async (page = 1, limit = 50, search = '', category = '', parent = '') => {
     const response = await api.get('/reports/stock-items', {
-        params: { page, limit, search, group, parent },
+        params: { page, limit, search, category, parent },
     });
     return response.data;
 };
@@ -112,28 +112,26 @@ export const getItemByBarcode = async (barcode: string) => {
 };
 
 export const getLiveStock = async (id: string) => {
-    const response = await api.get(`/stock-items/${id}/live-stock`);
+    const response = await api.get('/stock-items/live-stock', {
+        params: { masterid: id }
+    });
     return response.data;
 };
 
-export const getOrders = async (page = 1, limit = 50, search = '', orderType = '') => {
+export const getOrders = async (page = 1, limit = 50, search = '', orderType = '', userIdOverride?: number, date?: string, range?: string, status = '') => {
     const user = getUser();
     const response = await api.get('/reports/orders', {
         params: {
             page,
             limit,
             search,
-            user_id: user.id,
+            user_id: userIdOverride || (user.role === 'admin' ? undefined : user.id),
             role: user.role,
             show_all: 'true',
             order_type: orderType || undefined,
-            // Fix: Use Local Time for "Today"
-            date: (() => {
-                const d = new Date();
-                const istOffset = 5.5 * 60 * 60 * 1000;
-                const istTime = new Date(d.getTime() + istOffset);
-                return `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
-            })()
+            date: date || undefined,
+            range: range || undefined,
+            status: status || undefined
         },
     });
     return response.data;

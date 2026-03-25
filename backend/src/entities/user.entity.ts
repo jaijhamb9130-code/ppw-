@@ -8,8 +8,8 @@ export class User {
   @Column({ unique: true })
   username: string;
 
-  @Column()
-  password: string; // Storing plain text for now as per "simple auth" request, or hash if desired. Let's do simple first or simple hash.
+  @Column({ select: false })
+  password: string;
   @Column({ nullable: true })
   name: string;
 

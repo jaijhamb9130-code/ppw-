@@ -11,6 +11,7 @@ import { Order } from './entities/order.entity';
 import { OrderDetail } from './entities/order-detail.entity';
 import { User } from './entities/user.entity';
 import { GodownEntry } from './entities/godown-entry.entity';
+import { Meta } from './entities/meta.entity';
 import { GodownController } from './godown.controller';
 import { TallyService } from './tally.service';
 import { AuthModule } from './auth/auth.module';
@@ -30,8 +31,8 @@ import { AuthModule } from './auth/auth.module';
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
         database: configService.get<string>('DB_NAME', 'tally_sync'),
-        entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry],
-        synchronize: process.env.NODE_ENV !== 'production', // Prevent auto-create tables in production to protect data
+        entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry, Meta],
+        synchronize: false, // Prevent auto-create tables or schema changes that might conflict with imported data
       }),
       inject: [ConfigService],
     }),
@@ -42,6 +43,7 @@ import { AuthModule } from './auth/auth.module';
       OrderDetail,
       User,
       GodownEntry,
+      Meta,
     ]),
   ],
   controllers: [AppController, UserController, GodownController],

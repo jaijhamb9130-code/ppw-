@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, AlertCircle, LogOut, Package, FileText, ClipboardList, RefreshCw, ShoppingCart, IndianRupee, Calendar } from 'lucide-react';
+import { CheckCircle, AlertCircle, LogOut, Package, FileText, ClipboardList, RefreshCw, ShoppingCart, IndianRupee, Calendar, ArrowRight } from 'lucide-react';
 import { getUser, getDashboardStats, syncLedgers, syncStockItems } from '../api';
 
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,7 @@ interface DashboardStats {
     ledgerCount: number;
     stockCount: number;
     fyOrders: number;
+    lastSync: { ledgers: string | null; stock: string | null };
 }
 
 export default function Dashboard() {
@@ -96,27 +97,37 @@ export default function Dashboard() {
         return `FY ${now.getFullYear() - 1}-${now.getFullYear().toString().slice(2)}`;
     };
 
+    const formatLastSync = (timestamp: string | null) => {
+        if (!timestamp) return 'Never';
+        const date = new Date(timestamp);
+        return date.toLocaleString('en-IN', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+        }).toUpperCase();
+    };
+
     return (
         <div className="p-6 space-y-6">
             {/* Header */}
-            <div className="relative z-10 flex justify-between items-start">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-3 mb-2">
+            <div className="relative z-10 space-y-0.5">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
                         <img src="/ppw-logo.png" alt="PPW" className="w-10 h-10 object-contain" />
-                        <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-1 rounded-md">
-                            Admin Console
-                        </span>
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">P.P.W.</h2>
                     </div>
-                    <h2 className="text-4xl font-bold text-slate-900 tracking-tight">P.P.W.</h2>
-                    <p className="text-slate-500 font-medium">Purbanchal Papers & Works</p>
+                    <button
+                        onClick={handleLogout}
+                        className="p-3 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-colors shadow-sm active:scale-90"
+                        title="Logout"
+                    >
+                        <LogOut size={20} />
+                    </button>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="p-3 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-colors"
-                    title="Logout"
-                >
-                    <LogOut size={20} />
-                </button>
+                <p className="text-slate-500 font-bold text-xs tracking-tight opacity-70 ml-[52px]">Purbanchal Papers & Works</p>
             </div>
 
             {/* Today's Stats */}
@@ -156,7 +167,11 @@ export default function Dashboard() {
                     {stats.staffActivity.length > 0 ? (
                         <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory" style={{ scrollbarWidth: 'none' }}>
                             {stats.staffActivity.map((staff) => (
-                                <div key={staff.id} className="min-w-[160px] snap-start bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex-shrink-0">
+                                <div 
+                                    key={staff.id} 
+                                    onClick={() => navigate(`/orders?userId=${staff.id}&userName=${encodeURIComponent(staff.name)}`)}
+                                    className="min-w-[160px] snap-start bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex-shrink-0 cursor-pointer hover:border-indigo-200 hover:shadow-md active:scale-95 transition-all"
+                                >
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="w-8 h-8 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm uppercase">
                                             {(staff.name || '?').charAt(0)}
@@ -178,80 +193,136 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* Reports */}
-            <div className="space-y-3">
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest px-1">Reports</p>
-                <div className="grid grid-cols-1 gap-3">
-                    <Link to="/ledgers" className="block p-4 bg-white rounded-2xl shadow-sm border border-slate-100 active:scale-95 transition-transform">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                                    <FileText size={18} />
+            {/* Reports Section */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Reports</p>
+                    <span className="text-[10px] font-black text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-full uppercase">Real-time</span>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4">
+                    {/* Ledgers Card */}
+                    <Link to="/ledgers" className="group relative block p-5 bg-white rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 active:scale-[0.98] transition-all overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/30 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-indigo-100/40 transition-colors"></div>
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                                    <FileText size={22} />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">Ledgers</h3>
-                                    <p className="text-xs text-slate-500">
-                                        {loadingStats ? '...' : `${stats?.ledgerCount ?? 0} total`}
+                                    <h3 className="font-black text-slate-800 text-lg tracking-tight">Ledgers</h3>
+                                    <p className={`text-xs font-bold tracking-tight uppercase ${stats?.lastSync?.ledgers ? 'text-indigo-500' : 'text-slate-400'}`}>
+                                        Synced: {loadingStats ? '...' : formatLastSync(stats?.lastSync?.ledgers || null)}
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={handleSyncLedgers}
-                                disabled={syncingLedgers}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
-                                title="Sync Ledgers"
-                            >
-                                <RefreshCw size={16} className={syncingLedgers ? 'animate-spin' : ''} />
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <p className="text-xl font-black text-slate-900 tracking-tighter leading-none">
+                                        {loadingStats ? '...' : (stats?.ledgerCount ?? 0).toLocaleString()}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total</p>
+                                </div>
+                                <button
+                                    onClick={handleSyncLedgers}
+                                    disabled={syncingLedgers}
+                                    className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-md border border-slate-100 rounded-xl transition-all disabled:opacity-50 active:scale-90"
+                                    title="Sync Ledgers"
+                                >
+                                    <RefreshCw size={18} className={syncingLedgers ? 'animate-spin' : ''} />
+                                </button>
+                            </div>
                         </div>
                     </Link>
-                    <Link to="/stock-items" className="block p-4 bg-white rounded-2xl shadow-sm border border-slate-100 active:scale-95 transition-transform">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                                    <Package size={18} />
+
+                    {/* Stock Card */}
+                    <Link to="/stock-items" className="group relative block p-5 bg-white rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 active:scale-[0.98] transition-all overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50/30 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-emerald-100/40 transition-colors"></div>
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                                    <Package size={22} />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-900">Stock</h3>
-                                    <p className="text-xs text-slate-500">
-                                        {loadingStats ? '...' : `${stats?.stockCount ?? 0} items`}
+                                    <h3 className="font-black text-slate-800 text-lg tracking-tight">Inventory</h3>
+                                    <p className={`text-xs font-bold tracking-tight uppercase ${stats?.lastSync?.stock ? 'text-emerald-500' : 'text-slate-400'}`}>
+                                        Updated: {loadingStats ? '...' : formatLastSync(stats?.lastSync?.stock || null)}
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={handleSyncStock}
-                                disabled={syncingStock}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
-                                title="Sync Stock Items"
-                            >
-                                <RefreshCw size={16} className={syncingStock ? 'animate-spin' : ''} />
-                            </button>
-                        </div>
-                    </Link>
-                    <Link to="/orders" className="block p-4 bg-white rounded-2xl shadow-sm border border-slate-100 active:scale-95 transition-transform">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                                <ClipboardList size={18} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-900">Orders</h3>
-                                <p className="text-xs text-slate-500">History</p>
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <p className="text-xl font-black text-slate-900 tracking-tighter leading-none">
+                                        {loadingStats ? '...' : (stats?.stockCount ?? 0).toLocaleString()}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Items</p>
+                                </div>
+                                <button
+                                    onClick={handleSyncStock}
+                                    disabled={syncingStock}
+                                    className="p-2.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-white hover:shadow-md border border-slate-100 rounded-xl transition-all disabled:opacity-50 active:scale-90"
+                                    title="Sync Stock Items"
+                                >
+                                    <RefreshCw size={18} className={syncingStock ? 'animate-spin' : ''} />
+                                </button>
                             </div>
                         </div>
                     </Link>
-                    <div className="block p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-                                <Calendar size={18} />
+
+                    {/* Day Book Card */}
+                    <Link to="/orders" className="group relative block p-5 bg-white rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 active:scale-[0.98] transition-all overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50/30 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-orange-100/40 transition-colors"></div>
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
+                                    <ClipboardList size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-800 text-lg tracking-tight">Day Book</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-tight uppercase">Today's Transactions</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="font-bold text-slate-900">{getFYLabel()}</h3>
-                                <p className="text-xs text-slate-500">
-                                    {loadingStats ? '...' : `${stats?.fyOrders ?? 0} total orders`}
-                                </p>
+                            <div className="flex items-center gap-4 mr-1">
+                                <div className="text-right">
+                                    <p className="text-xl font-black text-orange-600 tracking-tighter leading-none transition-transform group-hover:scale-110">
+                                        {loadingStats ? '...' : stats?.today.orders ?? 0}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Orders</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                                    <ArrowRight size={16} strokeWidth={3} />
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </Link>
+
+                    {/* FY Card */}
+                    <Link to="/orders?range=fy" className="group relative block p-5 bg-slate-900 rounded-3xl shadow-xl active:scale-[0.98] transition-all overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-500/10 to-transparent"></div>
+                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mb-10 group-hover:bg-indigo-500/20 transition-colors"></div>
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-indigo-400 border border-white/10 group-hover:scale-110 transition-transform">
+                                    <Calendar size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-white text-lg tracking-tight group-hover:text-indigo-300 transition-colors">{getFYLabel()}</h3>
+                                    <p className="text-[10px] font-bold text-slate-500 tracking-tight uppercase">Full Financial Year</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 mr-1">
+                                <div className="text-right">
+                                    <p className="text-xl font-black text-indigo-400 tracking-tighter leading-none group-hover:text-white transition-colors">
+                                        {loadingStats ? '...' : (stats?.fyOrders ?? 0).toLocaleString()}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Orders</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-500 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                                    <ArrowRight size={16} strokeWidth={3} />
+                                </div>
+                            </div>
+                        </div>
+                    </Link>
                 </div>
             </div>
 

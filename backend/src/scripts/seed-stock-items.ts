@@ -144,6 +144,8 @@ async function seed() {
       stock.masterid = masterId;
       stock.name = name;
       stock.parent = getValue(item.parent);
+      stock.group = getValue(item.parent) || getValue(item.group);
+      stock.category = getValue(item.category);
       stock.base_units = getValue(item.baseunits);
       stock.hsn = getValue(item.hsn);
       stock.closing_balance = getValue(item.closingbalance);
@@ -160,11 +162,10 @@ async function seed() {
       stock.expiry_date = expiryDate;
       stock.is_active = true;
 
-      stock.rate_1 = findCustomField(item, 'rate1');
-      stock.rate_2 = findCustomField(item, 'rate2');
-      stock.rate_3 = findCustomField(item, 'rate3');
-      stock.rate_3a = findCustomField(item, 'rate3a');
-      stock.rate_4 = findCustomField(item, 'rate4');
+      stock.rate_one_2 = findCustomField(item, 'rate1');
+      stock.rate_one_3 = findCustomField(item, 'rate2');
+      stock.rate_one_4 = findCustomField(item, 'rate3');
+      stock.rate_one_5 = findCustomField(item, 'rate4');
 
       stockItems.push(stock);
     }

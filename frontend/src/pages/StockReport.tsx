@@ -18,10 +18,6 @@ interface StockItem {
     rate_3: string;
     rate_3a: string;
     rate_4: string;
-    mrp_disc_1: string;
-    mrp_disc_2: string;
-    mrp_disc_3: string;
-    mrp_disc_4: string;
 }
 
 interface Pagination {

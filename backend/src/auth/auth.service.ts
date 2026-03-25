@@ -14,7 +14,11 @@ export class AuthService {
   ) {}
 
   async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.usersRepository.findOne({ where: { username } });
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('LOWER(user.username) = LOWER(:username)', { username })
+      .getOne();
     if (user) {
       // 1. Try bcrypt compare (for migrated users)
       const isMatch = await bcrypt.compare(pass, user.password);

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tasklist.exe //FI \"PID eq 7148\")",
+      "Bash(docker exec ppw-mysql-1 mysql -u root -ppassword -e \":*)",
+      "Bash(taskkill.exe //F //PID 7148)",
+      "Bash(# Restore the deleted test item docker exec ppw-mysql-1 mysql -u root -ppassword -e \"\" INSERT INTO stock_item \\(masterid, name, parent, base_units, hsn, gst, is_active, ats_barcode\\) VALUES \\(''121055'', ''017679 Flair Clutch Pencil GLOW 2MM 10/-'', ''FLAIR'', ''Pcs'', ''96084000'', ''18'', 1, ''017679''\\); \"\" tally_sync && echo \"\"Item restored\"\" # Check backend logs for any errors echo \"\"=== Backend Errors ===\"\" grep -i \"\"error\\\\|warn\\\\|exception\\\\|crash\\\\|unhandled\"\" /tmp/nest_test.log)",
+      "Bash(npm install html5-qrcode)",
+      "Bash(curl -s http://localhost:3000/api/version)",
+      "Bash(curl -s -o /dev/null -w \"Frontend: HTTP %{http_code}\" http://localhost:5173)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5181)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5180)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Bash(curl -s \"http://localhost:3000/api/reports/stock-items?page=1&limit=5\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(npm install -D @vitejs/plugin-basic-ssl)",
+      "Bash(taskkill.exe //F //FI \"WINDOWTITLE eq *vite*\")"
+    ]
+  }
+}

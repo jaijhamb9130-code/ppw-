@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin } from 'lucide-react';
+import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera, RefreshCw } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { getLedgers, getItemByBarcode, createOrder, getStockItems, createLedger, getOrderById, getOrderDetails, updateOrder, syncOrderToTally, getLiveStock, getDraftOrders, getStockGroups, getStockCategories } from '../api';
 import { useToast } from '../context/ToastContext';
 
 interface StockItem {
+    id: number;
     masterid: string;
     name: string;
     ats_barcode: string;
@@ -15,11 +17,8 @@ interface StockItem {
     rate_one_2: string;
     rate_one_3: string;
     rate_one_4: string;
+    rate_one_4a: string;
     rate_one_5: string;
-    mrp_disc_1: string;
-    mrp_disc_2: string;
-    mrp_disc_3: string;
-    mrp_disc_4: string;
     rate_1?: string;
     rate_2?: string;
     rate_3?: string;
@@ -32,7 +31,7 @@ interface StockItem {
 }
 
 interface OrderItem {
-    stock_item_id: string;
+    stock_item_id: string;  // Tally masterid (GUID)
     name: string;
     barcode: string;
     rate: number;
@@ -45,6 +44,7 @@ interface OrderItem {
     livestock_type?: string;
     parent?: string;
     group?: string;
+    category?: string;
 }
 
 interface Ledger {
@@ -62,18 +62,18 @@ export default function CreateOrder() {
     const { showToast } = useToast();
     const [isLocked, setIsLocked] = useState(false);
 
-    // Fetch Groups and Categories on Mount
+    // Fetch Parents and Categories on Mount
     useEffect(() => {
         const loadInitialData = async () => {
             try {
-                const [g, p] = await Promise.all([
+                const [p, c] = await Promise.all([
                     getStockGroups(),
                     getStockCategories()
                 ]);
-                setGroups(g);
                 setParents(p);
+                setCategories(c);
             } catch (e) {
-                console.error("Failed to load groups/categories", e);
+                console.error("Failed to load parents/categories", e);
             }
         };
         loadInitialData();
@@ -215,19 +215,19 @@ export default function CreateOrder() {
     const [itemSearch, setItemSearch] = useState('');
     const [itemSearchLoading, setItemSearchLoading] = useState(false);
     const [itemSearchResults, setItemSearchResults] = useState<StockItem[]>([]);
-    const [groups, setGroups] = useState<string[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
     const [parents, setParents] = useState<string[]>([]);
     const [selectedParent, setSelectedParent] = useState<string | null>(null);
-    const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-    const [groupSearch, setGroupSearch] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [categorySearch, setCategorySearch] = useState('');
     const [parentSearch, setParentSearch] = useState('');
     const [showItemPopup, setShowItemPopup] = useState(false);
     const [barcodeQuery, setBarcodeQuery] = useState('');
     const [foundItem, setFoundItem] = useState<StockItem | null>(null);
-    const [itemQty, setItemQty] = useState<string>('1');
+    const [itemQty, setItemQty] = useState<string>('');
     const [itemRate, setItemRate] = useState<string>('');
     const [itemDiscount, setItemDiscount] = useState<string>('0');
-    const [itemLivestockType, setItemLivestockType] = useState<string>('');
+    const [itemLivestockType, setItemLivestockType] = useState<string>('Shop');
     const [shopStock, setShopStock] = useState<string>('0');
     const [pbStock, setPbStock] = useState<string>('0');
     const [isFetchingLiveStock, setIsFetchingLiveStock] = useState(false);
@@ -235,6 +235,88 @@ export default function CreateOrder() {
     const [itemUnit, setItemUnit] = useState<string>('');
     const [itemGst, setItemGst] = useState('');
     const [selectedSchemeName, setSelectedSchemeName] = useState<string>('');
+    const [showScanner, setShowScanner] = useState(false);
+    const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+
+    const startScanner = async (facing: 'environment' | 'user' = cameraFacing) => {
+        // If already running, stop first
+        if (scannerRef.current) {
+            try { await scannerRef.current.stop(); } catch {}
+            scannerRef.current = null;
+        }
+
+        // Check if camera API is available
+        if (!navigator.mediaDevices?.getUserMedia) {
+            showToast('Camera not available. Use localhost or HTTPS (ngrok).', 'error');
+            return;
+        }
+
+        setShowScanner(true);
+        setCameraFacing(facing);
+
+        // Small delay to let the DOM render the scanner div
+        await new Promise(r => setTimeout(r, 200));
+
+        try {
+            const scanner = new Html5Qrcode('barcode-scanner');
+            scannerRef.current = scanner;
+            await scanner.start(
+                { facingMode: facing },
+                { 
+                    fps: 20, 
+                    qrbox: { width: 250, height: 250 }
+                },
+                async (decodedText) => {
+                    await scanner.stop();
+                    scannerRef.current = null;
+                    setShowScanner(false);
+                    try {
+                        const item = await getItemByBarcode(decodedText);
+                        if (item) {
+                            setShowItemPopup(true);
+                            setFoundItem(item);
+                            setItemUnit(item.base_units || 'Nos');
+                            setItemGst(item.gst || '0');
+                            setItemRate('');
+                            setItemQty('');
+                            setItemDiscount('0');
+                            setSelectedSchemeName('');
+                            handleFetchLiveStock(item.masterid);
+                        } else {
+                            showToast('Item not found for barcode: ' + decodedText, 'error');
+                        }
+                    } catch {
+                        showToast('Error looking up scanned barcode', 'error');
+                    }
+                },
+                () => {}
+            );
+        } catch (err: any) {
+            const msg = err?.message || String(err);
+            if (msg.includes('Permission') || msg.includes('NotAllowed')) {
+                showToast('Camera permission denied. Allow camera in browser settings.', 'error');
+            } else if (msg.includes('NotFound') || msg.includes('Requested device not found')) {
+                showToast('No camera found on this device.', 'error');
+            } else {
+                showToast('Camera error: ' + msg, 'error');
+            }
+            setShowScanner(false);
+        }
+    };
+
+    const flipCamera = () => {
+        const newFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+        startScanner(newFacing);
+    };
+
+    const stopScanner = async () => {
+        if (scannerRef.current) {
+            try { await scannerRef.current.stop(); } catch {}
+            scannerRef.current = null;
+        }
+        setShowScanner(false);
+    };
 
     const handleFetchLiveStock = async (stockItemId: string) => {
         setIsFetchingLiveStock(true);
@@ -242,9 +324,13 @@ export default function CreateOrder() {
             const data = await getLiveStock(stockItemId);
             setShopStock(data.shop);
             setPbStock(data.pb);
-            setStockUnit(data.unit);
-        } catch (e) {
+            setStockUnit(data.unit || 'Pcs');
+        } catch (e: any) {
             console.error('Failed to fetch live stock', e);
+            const errorMessage = e.response?.data?.message || 'Failed to fetch live stock';
+            showToast(errorMessage, 'error');
+            // If item is inactive, backend might have deleted it, so we reset popup to clear selection
+            resetPopup();
         } finally {
             setIsFetchingLiveStock(false);
         }
@@ -325,19 +411,19 @@ export default function CreateOrder() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (itemSearch || selectedGroup || selectedParent) {
+            if (itemSearch || selectedCategory || selectedParent) {
                 searchItems(itemSearch);
             }
         }, 500);
         return () => clearTimeout(timer);
-    }, [itemSearch, selectedGroup, selectedParent]);
+    }, [itemSearch, selectedCategory, selectedParent]);
 
     const searchItems = async (query: string) => {
-        if (!query && !selectedGroup && !selectedParent) return;
+        if (!query && !selectedCategory && !selectedParent) return;
         setItemSearchLoading(true);
         try {
             const result = await getStockItems(
-                1, 20, query, selectedGroup || '', selectedParent || ''
+                1, 20, query, selectedCategory || '', selectedParent || ''
             );
             setItemSearchResults(result.data);
         } catch (error) {
@@ -347,24 +433,56 @@ export default function CreateOrder() {
         }
     };
 
+    const checkUnsavedChanges = () => {
+        if (!foundItem) return false;
+        const currentQty = parseFloat(itemQty || '0');
+        const currentRate = parseFloat(itemRate || '0');
+        const currentDisc = parseFloat(itemDiscount || '0');
+        const defaultMRP = parseFloat(foundItem.default_mrp || '0');
+        
+        // Dirty if quantity is entered or rate/discount modified from basic defaults
+        return currentQty > 0 || (currentRate > 0 && currentRate !== defaultMRP) || currentDisc > 0;
+    };
+
     const handleSelectItem = (item: StockItem) => {
+        if (checkUnsavedChanges()) {
+            const save = window.confirm('Switching Items: Do you want to SAVE your current entries first? \n\nOK = Save & Switch\nCancel = Discard & Switch');
+            if (save) {
+                addItemToOrder();
+            }
+        }
         setFoundItem(item);
         setItemRate(String(item.default_mrp || ''));
         setItemUnit(item.base_units || 'Nos');
         setStockUnit(item.base_units || 'Nos');
+        setItemGst(item.gst || '0');
+        setItemQty('');
+        setItemDiscount('0');
         setShowItemPopup(true);
         setItemSearch('');
         setSelectedParent(null);
-        setSelectedGroup(null);
+        setSelectedCategory(null);
         setParentSearch('');
-        setGroupSearch('');
+        setCategorySearch('');
         handleFetchLiveStock(item.masterid);
+    };
+
+    const handleClosePopup = () => {
+        if (checkUnsavedChanges()) {
+            const save = window.confirm('Closing: Do you want to SAVE your changes before exiting? \n\nOK = Save & Exit\nCancel = Discard & Exit');
+            if (save) {
+                addItemToOrder();
+                return;
+            }
+        }
+        resetPopup();
     };
 
     const handleEditItem = async (idx: number) => {
         const item = items[idx];
         setEditingIndex(idx);
         setFoundItem({
+            id: 0,
             masterid: item.stock_item_id,
             name: item.name,
             ats_barcode: item.barcode,
@@ -372,8 +490,7 @@ export default function CreateOrder() {
             closing_balance: '',
             gst: item.gst.toString(),
             default_mrp: '', 
-            rate_one_2: '', rate_one_3: '', rate_one_4: '', rate_one_5: '',
-            mrp_disc_1: '', mrp_disc_2: '', mrp_disc_3: '', mrp_disc_4: '',
+            rate_one_2: '', rate_one_3: '', rate_one_4: '', rate_one_4a: '', rate_one_5: '',
             rate_1: '', rate_2: '', rate_3: '', rate_3a: '', rate_4: '',
             last_purchase_cost: ''
         });
@@ -405,6 +522,7 @@ export default function CreateOrder() {
                     const mrp = item.default_mrp ? item.default_mrp.split('/')[0] : '0';
                     setItemRate(mrp);
                     setSelectedSchemeName('MRP');
+                    handleFetchLiveStock(item.masterid);
                 } else {
                     showToast("Item not found", 'error');
                     setFoundItem(null);
@@ -439,12 +557,15 @@ export default function CreateOrder() {
         let rate = parseFloat(itemRate);
         const discount = parseFloat(itemDiscount) || 0;
         const minRate = getMinRate();
-        if (minRate > 0 && rate <= minRate) return;
+        if (minRate > 0 && rate <= minRate) {
+            showToast(`Rate is too low`, 'error');
+            return;
+        }
         const baseAmount = rate * qty;
         const discountAmount = (baseAmount * discount) / 100;
         const amount = parseFloat((baseAmount - discountAmount).toFixed(2));
         const newItem: OrderItem = {
-            stock_item_id: foundItem.masterid,
+            stock_item_id: foundItem.masterid,  // Tally GUID masterid
             name: foundItem.name,
             barcode: foundItem.ats_barcode,
             rate: rate,
@@ -456,7 +577,8 @@ export default function CreateOrder() {
             selected_discount: discount,
             livestock_type: itemLivestockType,
             parent: foundItem.parent,
-            group: foundItem.group
+            group: foundItem.group,
+            category: foundItem.category
         };
         if (editingIndex !== null) {
             const newItems = [...items];
@@ -472,7 +594,7 @@ export default function CreateOrder() {
         setShowItemPopup(false);
         setBarcodeQuery('');
         setFoundItem(null);
-        setItemQty('1');
+        setItemQty('');
         setItemRate('');
         setItemDiscount('0');
         setItemLivestockType('');
@@ -602,7 +724,7 @@ export default function CreateOrder() {
 
             <div className="p-2 space-y-2.5 max-w-2xl mx-auto">
                 {/* Customer Selection Card */}
-                <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2 relative z-50">
+                <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2 relative z-[3]">
                     {selectedLedger ? (
                         <div className="flex justify-between items-center bg-indigo-50/50 border border-indigo-100 rounded-lg p-2.5">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -624,37 +746,62 @@ export default function CreateOrder() {
                 </div>
 
                 {/* Parent & Group Selection */}
-                <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2 relative z-40">
-                    <div className="flex items-center justify-between px-1"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STEP 1: SELECT PARENT & GROUP</label>{(selectedParent || selectedGroup) && !isLocked && <button onClick={() => { setSelectedParent(null); setSelectedGroup(null); setParentSearch(''); setGroupSearch(''); }} className="text-[10px] font-bold text-red-500 uppercase hover:underline">Clear All</button>}</div>
+                <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2 relative z-[2]">
+                    <div className="flex items-center justify-between px-1"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">STEP 1: SELECT PARENT & CATEGORY</label>{(selectedParent || selectedCategory) && !isLocked && <button onClick={() => { setSelectedParent(null); setSelectedCategory(null); setParentSearch(''); setCategorySearch(''); }} className="text-[10px] font-bold text-red-500 uppercase hover:underline">Clear All</button>}</div>
                     <div className="grid grid-cols-2 gap-2">
                         <div className="relative">
                             {selectedParent ? (
                                 <div className="flex items-center justify-between w-full pl-2.5 pr-1 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-[9px] font-bold text-indigo-700 uppercase h-[32px]"><span className="truncate">{selectedParent}</span>{!isLocked && <button onClick={() => { setSelectedParent(null); setParentSearch(''); }} className="p-1 hover:bg-indigo-100 rounded-lg transition-colors"><X size={14} /></button>}</div>
                             ) : (
-                                <><div className="relative"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} /><input type="text" placeholder="Search Parent..." value={parentSearch} disabled={isLocked} onChange={(e) => setParentSearch(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-bold uppercase h-[32px]" /></div>{parentSearch.length > 0 && <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-xl p-1 space-y-1 uppercase">{parents.filter(p => p.toLowerCase().includes(parentSearch.toLowerCase())).map(p => <button key={p} onClick={() => { setSelectedParent(p); setParentSearch(''); setSelectedGroup(null); }} className="w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold hover:bg-indigo-50 hover:text-indigo-700">{p}</button>)}</div>}</>
+                                <><div className="relative"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} /><input type="text" placeholder="Search Parent..." value={parentSearch} disabled={isLocked} onChange={(e) => setParentSearch(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-bold uppercase h-[32px]" /></div>{parentSearch.length > 0 && <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-xl p-1 space-y-1 uppercase">{parents.filter(p => p.toLowerCase().includes(parentSearch.toLowerCase())).map(p => <button key={p} onClick={() => { setSelectedParent(p); setParentSearch(''); setSelectedCategory(null); }} className="w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold hover:bg-indigo-50 hover:text-indigo-700">{p}</button>)}</div>}</>
                             )}
                         </div>
                         <div className="relative">
-                            {selectedGroup ? (
-                                <div className="flex items-center justify-between w-full pl-2.5 pr-1 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-[9px] font-bold text-indigo-700 uppercase h-[32px]"><span className="truncate">{selectedGroup}</span>{!isLocked && <button onClick={() => { setSelectedGroup(null); setGroupSearch(''); }} className="p-1 hover:bg-indigo-100 rounded-lg transition-colors"><X size={14} /></button>}</div>
+                            {selectedCategory ? (
+                                <div className="flex items-center justify-between w-full pl-2.5 pr-1 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-[9px] font-bold text-indigo-700 uppercase h-[32px]"><span className="truncate">{selectedCategory}</span>{!isLocked && <button onClick={() => { setSelectedCategory(null); setCategorySearch(''); }} className="p-1 hover:bg-indigo-100 rounded-lg transition-colors"><X size={14} /></button>}</div>
                             ) : (
-                                <><div className="relative"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} /><input type="text" placeholder="Search Group..." value={groupSearch} disabled={isLocked} onChange={(e) => setGroupSearch(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-bold uppercase h-[32px]" /></div>{groupSearch.length > 0 && <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-xl p-1 space-y-1 uppercase">{groups.filter(g => g.toLowerCase().includes(groupSearch.toLowerCase())).map(grp => <button key={grp} onClick={() => { setSelectedGroup(grp); setGroupSearch(''); }} className="w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold hover:bg-indigo-50 hover:text-indigo-700">{grp}</button>)}</div>}</>
+                                <><div className="relative"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} /><input type="text" placeholder="Search Category..." value={categorySearch} disabled={isLocked} onChange={(e) => setCategorySearch(e.target.value)} className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-bold uppercase h-[32px]" /></div>{categorySearch.length > 0 && <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-xl p-1 space-y-1 uppercase">{categories.filter((c: string) => c.toLowerCase().includes(categorySearch.toLowerCase())).map((cat: string) => <button key={cat} onClick={() => { setSelectedCategory(cat); setCategorySearch(''); }} className="w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold hover:bg-indigo-50 hover:text-indigo-700">{cat}</button>)}</div>}</>
                             )}
                         </div>
                     </div>
                 </div>
 
                 {/* Item Selection */}
-                <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2 relative z-30">
+                <div className="bg-white rounded-lg border border-slate-200 p-2.5 shadow-sm space-y-2 relative z-[1]">
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">STEP 2: SELECT ITEM</label>
                     <div className="relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input type="text" placeholder={isLocked ? "Order locked..." : "Type name or scan barcode..."} disabled={isLocked} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black outline-none uppercase disabled:opacity-50" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
+                        <input type="text" placeholder={isLocked ? "Order locked..." : "Type name or scan barcode..."} disabled={isLocked} className="w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black outline-none uppercase disabled:opacity-50" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
+                        {!isLocked && <button onClick={() => startScanner()} className="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-600 text-white p-1.5 rounded-lg active:scale-95 transition-transform" title="Scan with Camera"><Camera size={16} /></button>}
                     </div>
+                    {showScanner && (
+                        <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 shadow-lg bg-black relative h-80 flex items-center justify-center">
+                            <div id="barcode-scanner" className="w-full h-full flex items-center justify-center [&_video]:!object-cover [&_video]:!object-center [&_canvas]:!hidden [&_#qr-shaded-region]:!hidden" />
+                            
+                            {/* Manual Centered Guide Overlay */}
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                                <div className="w-[250px] h-[250px] relative">
+                                    {/* Corner Brackets */}
+                                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
+                                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
+                                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
+                                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
+                                    
+                                    {/* Scanning Laser Line */}
+                                    <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-scan-line"></div>
+                                </div>
+                            </div>
+
+                            <div className="absolute top-2 right-2 z-20 flex gap-1.5">
+                                <button onClick={flipCamera} className="bg-black/60 text-white p-1.5 rounded-full active:scale-95" title="Flip Camera"><RefreshCw size={14} /></button>
+                                <button onClick={stopScanner} className="bg-black/60 text-white p-1.5 rounded-full active:scale-95"><X size={14} /></button>
+                            </div>
+                        </div>
+                    )}
                     {itemSearchLoading && (
                         <div className="mt-2 text-[10px] font-bold text-indigo-600 uppercase text-center animate-pulse">Searching...</div>
                     )}
-                    {(selectedParent || selectedGroup || itemSearch.length >= 3) && (
+                    {(selectedParent || selectedCategory || itemSearch.length >= 3) && (
                         <div className="mt-2 border border-slate-100 rounded-2xl bg-slate-50/30 max-h-[400px] overflow-y-auto divide-y divide-slate-100">
                             {itemSearchResults.length === 0 ? (
                                 <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase">No matching items found</div>
@@ -669,7 +816,7 @@ export default function CreateOrder() {
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 <h4 className="font-black text-slate-800 text-[11px] group-hover:text-indigo-600 uppercase transition-colors">{item.name}</h4>
                                                 {item.parent && <span className="text-[7px] font-black text-slate-400 border border-slate-200 px-1 rounded uppercase bg-white">{item.parent}</span>}
-                                                {item.group && <span className="text-[7px] font-black text-indigo-400 border border-indigo-100 px-1 rounded uppercase bg-indigo-50/50">{item.group}</span>}
+                                                {item.category && <span className="text-[7px] font-black text-indigo-400 border border-indigo-100 px-1 rounded uppercase bg-indigo-50/50">{item.category}</span>}
                                             </div>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase">MRP: ₹{item.default_mrp}</span>
@@ -695,33 +842,33 @@ export default function CreateOrder() {
                                 <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded min-w-[20px] h-[38px] shrink-0"><span className="text-[9px] font-black text-slate-400">{idx + 1}</span></div>
                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                                     <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                        <h4 className="font-bold text-slate-800 text-[10px] uppercase break-words">{item.name}</h4>
-                                        {item.livestock_type && <span className="text-[7px] font-black text-emerald-500 bg-emerald-50 border border-emerald-100 px-1 rounded uppercase tracking-tighter shrink-0">{item.livestock_type}</span>}
-                                        {item.parent && <span className="text-[7px] font-black text-slate-400 bg-white border border-slate-200 px-1 rounded uppercase tracking-tighter shrink-0">{item.parent}</span>}
-                                        {item.group && <span className="text-[7px] font-black text-indigo-400 bg-indigo-50 border border-indigo-100 px-1 rounded uppercase tracking-tighter shrink-0">{item.group}</span>}
+                                        <h4 className="font-bold text-slate-800 text-[12px] uppercase break-words leading-tight">{item.name}</h4>
+                                        {item.livestock_type && <span className="text-[8px] font-black text-emerald-500 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0">{item.livestock_type}</span>}
+                                        {item.parent && <span className="text-[8px] font-black text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0">{item.parent}</span>}
+                                        {item.category && <span className="text-[8px] font-black text-indigo-400 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0">{item.category}</span>}
                                     </div>
-                                    <div className="flex items-center gap-3 text-[9px] font-bold">
+                                    <div className="flex items-center gap-4 text-[10px] font-bold">
                                         <div className="flex flex-col">
-                                            <span className="text-slate-400 uppercase text-[6px] mb-0.5 tracking-widest">Rate</span>
-                                            <span className="text-slate-700 leading-none font-black text-[10px]">₹{Math.round(item.rate).toLocaleString('en-IN')}</span>
+                                            <span className="text-slate-400 uppercase text-[8px] mb-0.5 tracking-widest font-black">Rate</span>
+                                            <span className="text-slate-900 leading-none font-black text-[13px]">₹{item.rate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                         </div>
-                                        <div className="flex flex-col border-l border-slate-100 pl-2">
-                                            <span className="text-slate-400 uppercase text-[6px] mb-0.5 tracking-widest">Qty</span>
-                                            <div className="flex items-baseline gap-0.5">
-                                                <span className="text-slate-700 leading-none">{item.quantity}</span>
-                                                <span className="text-[7px] text-slate-400 uppercase">{item.unit}</span>
+                                        <div className="flex flex-col border-l border-slate-200 pl-3">
+                                            <span className="text-slate-400 uppercase text-[8px] mb-0.5 tracking-widest font-black">Qty</span>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-slate-900 leading-none text-[13px] font-black">{item.quantity}</span>
+                                                <span className="text-[8px] text-slate-400 uppercase font-black">{item.unit}</span>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col border-l border-slate-100 pl-2">
-                                            <span className="text-slate-400 uppercase text-[6px] mb-0.5 tracking-widest">Disc</span>
-                                            <span className={`leading-none ${item.selected_discount > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
+                                        <div className="flex flex-col border-l border-slate-200 pl-3">
+                                            <span className="text-slate-400 uppercase text-[8px] mb-0.5 tracking-widest font-black">Disc</span>
+                                            <span className={`leading-none text-[13px] font-black ${item.selected_discount > 0 ? 'text-emerald-600' : 'text-slate-300'}`}>
                                                 {item.selected_discount > 0 ? `-${item.selected_discount}%` : '0%'}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end justify-between self-stretch py-0.5 pl-2 border-l border-slate-100 min-w-[75px]">
-                                    <div className="font-black text-slate-900 text-[11px] leading-none">₹{Math.round(item.amount).toLocaleString('en-IN')}</div>
+                                <div className="flex flex-col items-end justify-between self-stretch py-1 pl-3 border-l-2 border-slate-100 min-w-[90px]">
+                                    <div className="font-black text-slate-900 text-[13px] leading-none">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</div>
                                     {!isLocked && (
                                         <div className="flex gap-1 mt-1">
                                             <button onClick={() => handleEditItem(idx)} className="p-1 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded transition-colors border border-slate-100"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
@@ -763,42 +910,135 @@ export default function CreateOrder() {
 
             {/* Item Popup / Bottom Sheet */}
             {showItemPopup && (
-                <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-t-[2.5rem] sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 h-[90vh] overflow-y-auto">
-                        <div className="px-6 py-4 flex justify-between items-center border-b border-slate-50"><div><h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Add Item</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rate & Quantity</p></div><button onClick={resetPopup} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><X size={24} /></button></div>
-                        <div className="p-6 pt-4 space-y-6">
+                <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 backdrop-blur-sm bg-black/40">
+                    <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 h-auto max-h-[95vh] flex flex-col">
+                        <div className="px-6 py-5 flex justify-between items-center bg-white border-b border-slate-50 shrink-0">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none mb-1">Add Item</h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">ENTER DETAILS BELOW</p>
+                            </div>
+                            <button onClick={handleClosePopup} className="p-2 hover:bg-slate-50 rounded-full transition-all text-slate-300"><X size={20} strokeWidth={3} /></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-6">
                             {!foundItem ? (
-                                <div className="relative"><Scan className="absolute left-3 top-3.5 text-indigo-500" size={20} /><input type="text" className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-lg font-bold outline-none" placeholder="Scan Barcode..." value={barcodeQuery} onChange={(e) => setBarcodeQuery(e.target.value)} onKeyDown={handleBarcodeSearch} autoFocus /><button onClick={handleBarcodeSearch} className="absolute right-2 top-2 bottom-2 bg-indigo-100 text-indigo-600 rounded-lg px-3"><ArrowRight size={20} /></button></div>
+                                <div className="relative">
+                                    <Scan className="absolute left-3 top-3.5 text-indigo-500" size={20} />
+                                    <input type="text" className="w-full pl-10 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-lg font-bold outline-none" placeholder="Scan Barcode..." value={barcodeQuery} onChange={(e) => setBarcodeQuery(e.target.value)} onKeyDown={handleBarcodeSearch} autoFocus />
+                                    <div className="absolute right-2 top-2 bottom-2 flex gap-1">
+                                        <button onClick={() => startScanner()} className="bg-indigo-600 text-white rounded-lg px-3 active:scale-95 transition-transform" title="Scan with Camera"><Camera size={20} /></button>
+                                        <button onClick={handleBarcodeSearch} className="bg-indigo-100 text-indigo-600 rounded-lg px-3"><ArrowRight size={20} /></button>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 text-sm font-bold uppercase text-slate-800">{foundItem.name}</div>
-                                    <div className="flex justify-between items-center py-2 px-1">
-                                        <div className="flex w-full gap-3">
-                                            <button onClick={() => setItemLivestockType('Shop')} className={`flex-1 py-3 rounded-xl font-bold transition-all border flex justify-between px-4 items-center ${itemLivestockType === 'Shop' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>
-                                                <span>Shop</span>
-                                                <span className="text-xs">{isFetchingLiveStock ? '...' : shopStock} {stockUnit}</span>
-                                            </button>
-                                            <button onClick={() => setItemLivestockType('Pb')} className={`flex-1 py-3 rounded-xl font-bold transition-all border flex justify-between px-4 items-center ${itemLivestockType === 'Pb' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600'}`}>
-                                                <span>PB</span>
-                                                <span className="text-xs">{isFetchingLiveStock ? '...' : pbStock} {stockUnit}</span>
-                                            </button>
+                                    {/* Selected Item Card */}
+                                    <div className="bg-[#FEF9F6] p-4 rounded-xl border border-[#FDECE2]">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <div className="text-sm font-black text-slate-900 leading-tight uppercase">{foundItem.name}</div>
+                                                <div className="text-[10px] font-black text-[#A36E4E] uppercase tracking-wide">MRP: ₹{foundItem.default_mrp?.split('/')[0]}/{itemUnit?.toUpperCase()}</div>
+                                            </div>
+                                            <div className="px-2 py-1 border border-slate-200 rounded text-[9px] font-bold text-slate-400 bg-white">
+                                                {foundItem.ats_barcode || '000000'}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div><label className="text-[10px] uppercase font-black text-slate-400">Quantity</label><input type="number" className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-lg outline-none" value={itemQty} onChange={(e) => setItemQty(e.target.value)} /></div>
-                                        <div><label className="text-[10px] uppercase font-black text-slate-400">Rate (₹)</label><div className="relative"><input type="number" className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-lg outline-none" value={itemRate} onChange={handleRateChange} /><button onClick={() => setShowRateDropdown(!showRateDropdown)} className="absolute right-1 top-1 bottom-1 px-2 text-[10px] font-bold text-indigo-600 underline">Rates</button>{showRateDropdown && <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 shadow-xl rounded-lg z-20 w-48 p-1 uppercase">{['MRP', 'Rate 1', 'Rate 2', 'Rate 3', 'Rate 4'].map(label => { const r = (label === 'MRP' ? foundItem.default_mrp : (foundItem as any)[label.toLowerCase().replace(' ', '_')]); if (!r) return null; return <button key={label} onClick={() => { setPresetRate(r.split('/')[0], label); setShowRateDropdown(false); }} className="w-full text-left px-3 py-2 hover:bg-indigo-50 rounded text-xs font-bold flex justify-between"><span>{label}</span><span>₹{r}</span></button>; })}</div>}</div></div>
+
+                                    {/* Godown Selection */}
+                                    <div className="flex w-full gap-3">
+                                        <button 
+                                            onClick={() => setItemLivestockType('Shop')} 
+                                            className={`flex-1 p-3.5 rounded-xl font-black transition-all border-2 flex items-center justify-between px-5 ${itemLivestockType === 'Shop' ? 'bg-[#A36E4E] border-[#A36E4E] text-white shadow-lg shadow-[#A36E4E]/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                                        >
+                                            <span className="text-xs uppercase">Shop</span>
+                                            <div className="text-xs">{isFetchingLiveStock ? '...' : shopStock} <span className="opacity-70 uppercase text-[10px] font-bold">{stockUnit?.toUpperCase()}</span></div>
+                                        </button>
+                                        <button 
+                                            onClick={() => setItemLivestockType('Pb')} 
+                                            className={`flex-1 p-3.5 rounded-xl font-black transition-all border-2 flex items-center justify-between px-5 ${itemLivestockType === 'Pb' ? 'bg-[#A36E4E] border-[#A36E4E] text-white shadow-lg shadow-[#A36E4E]/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                                        >
+                                            <span className="text-xs uppercase">PB</span>
+                                            <div className="text-xs">{isFetchingLiveStock ? '...' : pbStock} <span className="opacity-70 uppercase text-[10px] font-bold">{stockUnit?.toUpperCase()}</span></div>
+                                        </button>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div><label className="text-[10px] uppercase font-black text-slate-400">Discount (%)</label><input type="number" className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-lg outline-none" value={itemDiscount} onChange={(e) => setItemDiscount(e.target.value)} /></div>
-                                        <div><label className="text-[10px] uppercase font-black text-slate-400">Total</label><div className="w-full px-2 py-2 bg-indigo-50 rounded-lg font-bold text-xl text-indigo-700 flex items-center justify-center">₹{calculateCurrentItemTotal().toFixed(2)}</div></div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 ml-1 tracking-widest">Quantity</label>
+                                            <div className="relative">
+                                                <input type="number" placeholder="Qty" className="w-full px-4 py-3 bg-[#FCFAFA] border border-[#E5DFDF] rounded-xl font-black text-lg outline-none focus:border-[#A36E4E] transition-all" value={itemQty} onChange={(e) => setItemQty(e.target.value)} />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-black text-slate-400">{itemUnit?.toUpperCase()}</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 ml-1 tracking-widest">Rate (₹)</label>
+                                            <div className="relative">
+                                                <input type="number" placeholder="Rate" className="w-full pl-4 pr-10 py-3 bg-[#FCFAFA] border border-[#E5DFDF] rounded-xl font-black text-lg outline-none focus:border-[#A36E4E] transition-all" value={itemRate} onChange={handleRateChange} />
+                                                <button onClick={() => setShowRateDropdown(!showRateDropdown)} className="absolute right-2 top-2 bottom-2 px-2 border-l border-slate-200 text-slate-400 hover:text-[#A36E4E]">
+                                                    <ChevronDown size={18} strokeWidth={3} />
+                                                </button>
+                                                {showRateDropdown && (
+                                                    <div className="absolute right-0 top-full mt-1 bg-white border border-slate-100 shadow-xl rounded-xl z-[60] w-48 overflow-hidden animate-in fade-in slide-in-from-top-1">
+                                                        <div className="px-2.5 py-1.5 bg-slate-50 border-b border-slate-100/60 text-[8px] font-black text-slate-400 tracking-wider uppercase">Select Rate</div>
+                                                        <div className="max-h-56 overflow-y-auto p-0.5">
+                                                            {[
+                                                                { label: 'MRP', field: 'default_mrp' },
+                                                                { label: 'Rate 1', field: 'rate_one_2' },
+                                                                { label: 'Rate 2', field: 'rate_one_3' },
+                                                                { label: 'Rate 3', field: 'rate_one_4' },
+                                                                { label: 'Rate 3a', field: 'rate_one_4a' },
+                                                                { label: 'Rate 4', field: 'rate_one_5' }
+                                                            ].map(({ label, field }) => { 
+                                                                const r = (foundItem as any)[field]; 
+                                                                if (!r) return null; 
+                                                                const isMRP = label === 'MRP';
+                                                                return (
+                                                                    <button key={label} onClick={() => { setPresetRate(String(r).split('/')[0].trim(), label); setShowRateDropdown(false); }} className="w-full text-left px-2.5 py-1.5 hover:bg-slate-50 flex justify-between items-center rounded-lg group transition-all">
+                                                                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-tight">{label}</span>
+                                                                        <span className={`text-[10px] font-black ${isMRP ? 'text-[#A36E4E]' : 'text-slate-600'}`}>₹{String(r).toUpperCase()}</span>
+                                                                    </button>
+                                                                ); 
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <button onClick={addItemToOrder} disabled={!itemQty || !itemRate} className="mt-4 w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold uppercase active:scale-95 disabled:opacity-50">Confirm Add Item</button>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 ml-1 tracking-widest">Discount (%)</label>
+                                            <div className="relative">
+                                                <input type="number" className="w-full px-4 py-3 bg-[#FCFAFA] border border-[#E5DFDF] rounded-xl font-black text-lg outline-none focus:border-[#A36E4E] transition-all" value={itemDiscount} onChange={(e) => setItemDiscount(e.target.value)} />
+                                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-black text-slate-400">%</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase font-black text-slate-400 ml-1 tracking-widest block">Total</label>
+                                            <div className="w-full h-[54px] bg-[#FEF9F6] border border-[#FDECE2] rounded-xl font-black text-xl text-[#A36E4E] flex items-center justify-center tracking-tight">
+                                                ₹{calculateCurrentItemTotal().toFixed(2)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {itemRate && getMinRate() > 0 && parseFloat(itemRate) <= getMinRate() && (
+                                        <div className="bg-red-50 border-2 border-red-100 rounded-xl px-4 py-3 text-[9px] font-bold text-red-600 uppercase flex items-center gap-2">
+                                            <Info size={14} /> <span>Rate is too low</span>
+                                        </div>
+                                    )}
+
+                                    <button onClick={addItemToOrder} disabled={!itemQty || !itemRate} className="w-full bg-[#A36E4E] text-white py-4 rounded-xl font-black text-sm shadow-xl shadow-[#A36E4E]/20 active:scale-95 disabled:opacity-30 transition-all flex items-center justify-center gap-2">
+                                        Confirm Add Item
+                                    </button>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             )}
+
 
             {/* Create Ledger Modal */}
             {showCreateLedger && (

@@ -63,6 +63,7 @@ function Layout() {
 
   const forceLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     window.location.href = '/login';
   };
 
@@ -74,17 +75,22 @@ function Layout() {
       const mins = now.getMinutes();
       const totalMins = hrs * 60 + mins;
 
-      // Logout Window: 11:45 PM (1425 mins) to 11:59 PM (1439 mins)
-      const isNapTime = totalMins >= 1425 && totalMins <= 1439;
+      // Logout Window: 11:45 PM (1425 mins) to 5:00 AM (300 mins)
+      // Logic: If past 11:45 PM OR before 5:00 AM
+      const isNapTime = totalMins >= 1425 || totalMins <= 300;
 
       if (isNapTime) {
-        const user = localStorage.getItem('user');
-        if (user && window.location.pathname !== '/login') {
+        const userStr = localStorage.getItem('user');
+        if (userStr && window.location.pathname !== '/login') {
+          const userData = JSON.parse(userStr);
+          // Allow Admin to bypass Nap Time if they are actively working
+          if (userData.role === 'admin') return;
+
           // If it's EXACTLY 11:45 PM, show the polite popup first
           if (hrs === 23 && mins === 45) {
             if (!showNapModal) setShowNapModal(true);
           } else {
-            // If it's anytime else in the window (e.g. 12:05 AM), force logout immediately
+            // If it's anytime else in the window (e.g. 1:00 AM), force logout immediately
             forceLogout();
           }
         }

@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   Request,
+  HttpException,
   UnauthorizedException,
   UseGuards,
   Headers,
@@ -21,6 +22,7 @@ import { Repository } from 'typeorm';
 import { StockItem } from './entities/stock-item.entity';
 import { Order } from './entities/order.entity';
 import { OrderDetail } from './entities/order-detail.entity';
+import { Meta } from './entities/meta.entity';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller()
@@ -37,6 +39,8 @@ export class AppController {
     private orderRepo: Repository<Order>,
     @InjectRepository(OrderDetail)
     private orderDetailRepo: Repository<OrderDetail>,
+    @InjectRepository(Meta)
+    private metaRepo: Repository<Meta>,
   ) {}
 
   @Get()
@@ -63,6 +67,7 @@ export class AppController {
       .select('COUNT(*)', 'count')
       .addSelect('COALESCE(SUM(order.total_amount), 0)', 'total')
       .where('order.date = :todayStr', { todayStr })
+      .andWhere("order.order_type = 'Tax Invoice'")
       .getRawOne();
 
     // Staff activity today
@@ -75,6 +80,7 @@ export class AppController {
       .addSelect('COUNT(*)', 'bills')
       .addSelect('COALESCE(SUM(order.total_amount), 0)', 'sales')
       .where('order.date = :todayStr', { todayStr })
+      .andWhere("order.order_type = 'Tax Invoice'")
       .groupBy('creator.id')
       .addGroupBy('creator.name')
       .addGroupBy('creator.username')
@@ -93,20 +99,30 @@ export class AppController {
       .where('order.date >= :fyStart', { fyStart })
       .getRawOne();
 
+    // Get last sync timestamps
+    const lastSyncLedgers = await this.metaRepo.findOne({ where: { key: 'last_sync_ledgers' } });
+    const lastSyncStock = await this.metaRepo.findOne({ where: { key: 'last_sync_stock' } });
+
     return {
       today: {
         orders: parseInt(todayStats.count) || 0,
         sales: parseFloat(todayStats.total) || 0,
       },
-      staffActivity: staffActivity.map((s: any) => ({
-        id: s.id || 0,
-        name: s.name || s.username || 'System',
-        bills: parseInt(s.bills) || 0,
-        sales: parseFloat(s.sales) || 0,
-      })),
+      staffActivity: staffActivity
+        .map((s: any) => ({
+          id: s.id || 0,
+          name: s.name || s.username || 'System',
+          bills: parseInt(s.bills) || 0,
+          sales: parseFloat(s.sales) || 0,
+        }))
+        .sort((a, b) => b.sales - a.sales), // Sort by sales descending
       ledgerCount,
       stockCount,
       fyOrders: parseInt(fyOrders.count) || 0,
+      lastSync: {
+        ledgers: lastSyncLedgers?.value || null,
+        stock: lastSyncStock?.value || null,
+      },
     };
   }
 
@@ -240,13 +256,14 @@ export class AppController {
     for (const item of items) {
       const orderDetail = new OrderDetail();
       orderDetail.order = savedOrder;
-      const stockItem = await this.stockRepo.findOneBy({
-        masterid: item.stock_item_id,
-      });
-      if (!stockItem) continue; // Skip or handle error
 
-      orderDetail.stock_item_id = stockItem.masterid;
-      orderDetail.item_name = stockItem.name;
+      // Look up by BARCODE — reliable 1:1 mapping vs masterid which can collide
+      const stockItem = item.barcode
+        ? await this.stockRepo.findOneBy({ ats_barcode: item.barcode })
+        : null;
+
+      // item.name (from frontend selection) is the authoritative name — NEVER overwrite it
+      orderDetail.item_name = item.name;
       orderDetail.barcode = item.barcode;
       orderDetail.rate = item.rate;
       orderDetail.unit = item.unit;
@@ -256,8 +273,11 @@ export class AppController {
       orderDetail.selected_scheme = item.selected_scheme;
       orderDetail.discount_percentage = item.selected_discount;
       orderDetail.livestock_type = item.livestock_type;
-      orderDetail.parent = stockItem.parent;
-      orderDetail.group = stockItem.group;
+      orderDetail.stock_item_id = stockItem?.masterid ?? null;
+      orderDetail.parent = stockItem?.parent || item.parent || null;
+      orderDetail.group = stockItem?.group || item.group || null;
+      orderDetail.category = stockItem?.category || item.category || null;
+
       await this.orderDetailRepo.save(orderDetail);
     }
 
@@ -290,46 +310,90 @@ export class AppController {
     return item;
   }
 
-  @Get('stock-items/:masterid/live-stock')
-  async getLiveStock(@Param('masterid') masterid: string) {
+  @Get('stock-items/live-stock')
+  async getLiveStock(@Query('masterid') masterid: string) {
     const stockItem = await this.stockRepo.findOneBy({ masterid });
     if (!stockItem) return { shop: '0.00', pb: '0.00' };
 
-    const collection = await this.tallyService.fetchItemGodownStock(
-      stockItem.name,
-    );
-
-    let shopQty = 0;
-    let pbQty = 0;
-
-    for (const entry of collection) {
-      // Use specific keys provided by user: godownname and stkclbalance
-      const godownName = (
-        this.tallyService.getValue(entry.godownname) ||
-        this.tallyService.getValue(entry.name) ||
-        ''
-      ).toLowerCase();
-      const closingBal =
-        parseFloat(this.tallyService.getValue(entry.stkclbalance)) ||
-        parseFloat(this.tallyService.getValue(entry.closingbalance)) ||
-        0;
-
-      if (godownName.includes('shop')) {
-        shopQty += closingBal;
-      } else if (
-        godownName.includes('pb') ||
-        godownName.includes('p.b') ||
-        godownName.includes('panbazar')
-      ) {
-        pbQty += closingBal;
+    // Quick check: if DB already has an expiry date that has passed, delete immediately
+    if (stockItem.expiry_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiry = new Date(stockItem.expiry_date);
+      expiry.setHours(0, 0, 0, 0);
+      if (today >= expiry) {
+        await this.stockRepo.delete({ masterid });
+        throw new HttpException('Sorry, selected item is inactive. Please select an active item.', 410);
       }
     }
 
-    return {
-      shop: shopQty.toFixed(2),
-      pb: pbQty.toFixed(2),
-      unit: stockItem.base_units || 'Pcs',
-    };
+    try {
+      console.log(`[LiveStock] Fetching for item: "${stockItem.name}" (MasterID: ${masterid})`);
+      const collection = await this.tallyService.fetchItemGodownStock(
+        stockItem.name,
+      );
+      console.log(`[LiveStock] Received ${collection.length} entries from Tally.`);
+      if (collection.length === 0) {
+        // Log the search payload just in case
+        console.log(`[LiveStock] Empty collection for "${stockItem.name}".`);
+      }
+
+      let shopQty = 0;
+      let pbQty = 0;
+      let liveUnit = '';
+      let isInactive = false;
+
+      for (const entry of collection) {
+        const status = this.tallyService.findCustomField(entry, 'ABSStatus').toLowerCase();
+        if (status === 'inactive') {
+          isInactive = true;
+          break;
+        }
+
+        const godownName = this.tallyService.findCustomField(entry, 'GodownName') ||
+                           this.tallyService.findCustomField(entry, 'Name');
+
+        const closingBalRaw = this.tallyService.findCustomField(entry, 'StkClBalance') ||
+                              this.tallyService.findCustomField(entry, 'ClosingBalance') ||
+                              '0';
+
+        // Extract value and unit (e.g., " 9042.00 Pcs" -> 9042.0, "Pcs")
+        // Tally sometimes returns a string like " 9042.00 Pcs" or just "9042.00"
+        const match = closingBalRaw.trim().match(/^([-+]?[0-9]*\.?[0-9]+)\s*(.*)$/);
+        const closingBal = match ? parseFloat(match[1]) : parseFloat(closingBalRaw) || 0;
+        if (match && match[2] && !liveUnit) {
+          liveUnit = match[2].trim();
+        }
+
+        const lowerGodown = godownName.toLowerCase();
+        if (lowerGodown.includes('shop')) {
+          shopQty += closingBal;
+        } else if (
+          lowerGodown.includes('pb') ||
+          lowerGodown.includes('p.b') ||
+          lowerGodown.includes('panbazar')
+        ) {
+          pbQty += closingBal;
+        }
+      }
+
+      if (isInactive) {
+        await this.stockRepo.delete({ masterid });
+        throw new HttpException('Sorry, selected item is inactive. Please select an active item.', 410);
+      }
+
+      return {
+        shop: shopQty.toFixed(2),
+        pb: pbQty.toFixed(2),
+        unit: liveUnit || stockItem.base_units || 'Pcs',
+      };
+    } catch (e) {
+      // If it's a known HttpException (e.g. 410 inactive), re-throw it
+      if (e instanceof HttpException) throw e;
+      // Otherwise Tally is unreachable — return 0 stock gracefully without resetting the popup
+      console.warn(`Tally unreachable for live stock of ${stockItem.name}: ${e.message}`);
+      return { shop: '0.00', pb: '0.00', unit: stockItem.base_units || 'Pcs' };
+    }
   }
 
   // Separate sync endpoints
@@ -659,6 +723,8 @@ export class AppController {
     @Query('date') date: string = '',
     @Query('drafts_only') draftsOnly: string = 'false', // New param
     @Query('order_type') orderType: string = '',
+    @Query('range') range: string = '', // New param: 'fy'
+    @Query('status') status: string = '', // New param: 'inedit', 'pending', etc.
   ) {
     try {
       const pageNum = Math.max(1, parseInt(page) || 1);
@@ -672,21 +738,20 @@ export class AppController {
         .orderBy('order.date', 'DESC')
         .addOrderBy('order.created_at', 'DESC');
 
+      // Build dynamic where clause
+      let hasWhere = false;
+
       if (draftsOnly === 'true') {
-        // DRAFT MODE: Show only 'inedit' orders for this user (or all if admin)
         query.where("order.status = 'inedit'");
+        hasWhere = true;
 
         if (role && role !== 'admin' && userId) {
           query.andWhere('order.created_by = :userId', {
             userId: parseInt(userId),
           });
-          // CRITICAL: We DO NOT filter by Date here.
-          // Reason: User wants to find drafts from ANY day to resume work.
         }
       } else if (search) {
-        // Relaxed search
         const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
-
         const cleanBill = this.cleanSql('order.bill_number');
         const cleanLedgerName = this.cleanSql('ledger.name');
         const cleanCreator = this.cleanSql('creator.name');
@@ -703,34 +768,56 @@ export class AppController {
             )`,
           { search: `%${search}%`, cleanSearch: `%${cleanSearch}%` },
         );
+        hasWhere = true;
       } else {
-        // Default View: Hide Completed/Fetched orders UNLESS show_all is requested
-        if (showAll !== 'true') {
+        if (showAll !== 'true' && range !== 'fy') {
           query.where("order.status != 'fetched'");
+          hasWhere = true;
         }
       }
 
-      // Apply Date/User filters ONLY if NOT in drafts_only mode (and not already filtered by search/draft logic above)
-      // Actually, standard filters should apply unless specifically overridden.
-      // logic refinement:
+      // Handle Range Filter (Financial Year)
+      if (range === 'fy') {
+        const today = new Date();
+        const fyStart = today.getMonth() >= 3
+          ? `${today.getFullYear()}-04-01`
+          : `${today.getFullYear() - 1}-04-01`;
+        
+        if (hasWhere) query.andWhere('order.date >= :fyStart', { fyStart });
+        else { query.where('order.date >= :fyStart', { fyStart }); hasWhere = true; }
+        
+        // When showing FY orders, we usually want to see everything including fetched
+        // unless explicitly told otherwise. For now, just adding it to scope.
+      }
 
+      // Final Scoping (Staff filtering or Privacy)
       if (draftsOnly !== 'true') {
-        // For non-admin users, filter by their own orders AND strictly TODAY's orders
-        if (role && role !== 'admin' && userId) {
-          query.andWhere('order.created_by = :userId', {
-            userId: parseInt(userId),
-          });
-
-          // Filter by Date (or Dashboard visibility logic)
+        if (role === 'admin') {
+          // If explicit userId passed (clicked from dashboard)
+          const filterId = parseInt(userId);
+          if (!isNaN(filterId) && filterId > 0) {
+            const condition = 'order.created_by = :userIdFilter';
+            if (hasWhere) query.andWhere(condition, { userIdFilter: filterId });
+            else { query.where(condition, { userIdFilter: filterId }); hasWhere = true; }
+          }
+          
           if (date) {
-            // Modified Logic: Show (Unsynced from ANY date) OR (Any Status from TODAY)
-            // We use the passed 'date' as "Today" (client time)
+            const condition = 'order.date = :dateFilter';
+            if (hasWhere) query.andWhere(condition, { dateFilter: date });
+            else { query.where(condition, { dateFilter: date }); hasWhere = true; }
+          }
+        } else if (role === 'employee' && userId) {
+          // Employees see ONLY their own
+          const condition = 'order.created_by = :userIdScoped';
+          if (hasWhere) query.andWhere(condition, { userIdScoped: parseInt(userId) });
+          else { query.where(condition, { userIdScoped: parseInt(userId) }); hasWhere = true; }
+
+          if (date) {
             query.andWhere(
-              "(order.status != 'fetched' OR order.date = :date)",
-              { date },
+              "(order.status != 'fetched' OR order.date = :dateScoped)",
+              { dateScoped: date },
             );
-          } else {
-            // Fallback if no date passed (server time)
+          } else if (range !== 'fy') {
             query.andWhere(
               "(order.status != 'fetched' OR DATE(order.date) = CURDATE())",
             );
@@ -738,9 +825,17 @@ export class AppController {
         }
       }
 
-      // Filter by order type if specified
+      // Secondary filters
       if (orderType) {
-        query.andWhere('order.order_type = :orderType', { orderType });
+        const condition = 'order.order_type = :orderType';
+        if (hasWhere) query.andWhere(condition, { orderType });
+        else { query.where(condition, { orderType }); hasWhere = true; }
+      }
+
+      if (status) {
+        const condition = 'order.status = :status';
+        if (hasWhere) query.andWhere(condition, { status });
+        else { query.where(condition, { status }); hasWhere = true; }
       }
 
       const [data, total] = await query
@@ -773,9 +868,10 @@ export class AppController {
 
   @Get('orders/:id/details')
   async getOrderDetails(@Param('id') id: number) {
+    // Do NOT join stock_item — use item_name from order_detail directly
+    // (stock_item_id may point to wrong item in local DB; item_name is always correct)
     return this.orderDetailRepo.find({
       where: { order: { id } },
-      relations: ['stock_item'],
     });
   }
 
@@ -864,23 +960,18 @@ export class AppController {
         where: { order: { id: orderId } },
       });
       await this.orderDetailRepo.remove(oldDetails);
-
       for (const item of items) {
         const orderDetail = new OrderDetail();
         orderDetail.order = savedOrder;
 
-        const stockItem = await this.stockRepo.findOneBy({
-          masterid: item.stock_item_id,
-        });
-        if (stockItem) {
-          orderDetail.stock_item_id = stockItem.masterid;
-          orderDetail.item_name = stockItem.name;
-          orderDetail.barcode = item.barcode; // Or stockItem.ats_barcode
-        } else {
-          // Fallback if item ID missing but others present (shouldn't happen in valid flow)
-          orderDetail.item_name = item.name || 'Unknown Item';
-        }
+        // Look up by BARCODE — reliable 1:1 mapping vs masterid which can collide
+        const stockItem = item.barcode
+          ? await this.stockRepo.findOneBy({ ats_barcode: item.barcode })
+          : null;
 
+        // item.name (from frontend selection) is the authoritative name — NEVER overwrite it
+        orderDetail.item_name = item.name;
+        orderDetail.barcode = item.barcode;
         orderDetail.rate = item.rate;
         orderDetail.unit = item.unit;
         orderDetail.quantity = item.quantity;
@@ -889,13 +980,13 @@ export class AppController {
         orderDetail.selected_scheme = item.selected_scheme;
         orderDetail.discount_percentage = item.selected_discount;
         orderDetail.livestock_type = item.livestock_type;
-        if (stockItem) {
-          orderDetail.parent = stockItem.parent;
-          orderDetail.group = stockItem.group;
-        }
+        orderDetail.stock_item_id = stockItem?.masterid ?? null;
+        orderDetail.parent = stockItem?.parent || item.parent || null;
+        orderDetail.group = stockItem?.group || item.group || null;
+        orderDetail.category = stockItem?.category || item.category || null;
+
         await this.orderDetailRepo.save(orderDetail);
       }
-
       return savedOrder;
     } catch (error) {
       console.error('Error updating order:', error);

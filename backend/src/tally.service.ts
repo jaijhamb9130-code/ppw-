@@ -8,6 +8,7 @@ import { Ledger } from './entities/ledger.entity';
 import { StockItem } from './entities/stock-item.entity';
 
 import { Order } from './entities/order.entity';
+import { Meta } from './entities/meta.entity';
 
 @Injectable()
 export class TallyService {
@@ -23,6 +24,8 @@ export class TallyService {
 
     @InjectRepository(Order)
     private orderRepository: Repository<Order>,
+    @InjectRepository(Meta)
+    private metaRepository: Repository<Meta>,
     private configService: ConfigService,
   ) {
     this.tallyUrl = this.configService.get<string>(
@@ -120,7 +123,7 @@ export class TallyService {
     return '';
   }
 
-  private findCustomField(item: any, fieldName: string, depth = 0): string {
+  public findCustomField(item: any, fieldName: string, depth = 0): string {
     if (!item) return '';
     if (depth > 5) return ''; // Prevent deep recursion/stack overflow
 
@@ -254,6 +257,13 @@ export class TallyService {
       }
 
       this.logger.log(`Saved ${savedCount} ledgers.`);
+      
+      // Update sync timestamp
+      await this.metaRepository.save({ 
+        key: 'last_sync_ledgers', 
+        value: new Date().toISOString() 
+      });
+
       return savedCount;
     } catch (error) {
       this.logger.error('Error fetching ledgers', error.stack);
@@ -392,11 +402,10 @@ export class TallyService {
           stock.expiry_date = expiryDate;
           stock.is_active = true;
 
-          stock.rate_1 = this.findCustomField(item, 'rate1');
-          stock.rate_2 = this.findCustomField(item, 'rate2');
-          stock.rate_3 = this.findCustomField(item, 'rate3');
-          stock.rate_3a = this.findCustomField(item, 'rate3a');
-          stock.rate_4 = this.findCustomField(item, 'rate4');
+          stock.rate_one_2 = this.findCustomField(item, 'rate1');
+          stock.rate_one_3 = this.findCustomField(item, 'rate2');
+          stock.rate_one_4 = this.findCustomField(item, 'rate3');
+          stock.rate_one_5 = this.findCustomField(item, 'rate4');
 
           await this.stockItemRepository.save(stock);
           savedCount++;
@@ -412,6 +421,13 @@ export class TallyService {
       }
 
       this.logger.log(`Processed ${collection.length} items. Saved/Updated: ${savedCount}`);
+      
+      // Update sync timestamp
+      await this.metaRepository.save({ 
+        key: 'last_sync_stock', 
+        value: new Date().toISOString() 
+      });
+
       return savedCount;
     } catch (error) {
       this.logger.error('Error fetching stock items', error.stack);
@@ -506,6 +522,7 @@ export class TallyService {
         'Closing Balance',
         'GodownName',
         'StkClBalance',
+        'ABSStatus',
       ],
     };
 

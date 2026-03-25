@@ -33,8 +33,8 @@ export class GodownEntry {
   user_name: string; // Persisted name for historical records
 
   // Relation Removed as per user request (Decoupled)
-  @Column({ nullable: true })
-  item_id: string;
+  @Column({ type: 'int', nullable: true })
+  item_id: number;
 
   @Column()
   item_name: string; // Storing name for easier display

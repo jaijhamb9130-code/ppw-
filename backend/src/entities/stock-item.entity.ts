@@ -1,8 +1,11 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity()
+@Entity('stock_item')
 export class StockItem {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ nullable: true })
   masterid: string;
 
   @Column({ nullable: true })
@@ -10,12 +13,6 @@ export class StockItem {
 
   @Column({ nullable: true })
   parent: string;
-
-  @Column({ nullable: true })
-  group: string;
-
-  @Column({ nullable: true })
-  category: string;
 
   @Column({ nullable: true })
   base_units: string;
@@ -33,19 +30,20 @@ export class StockItem {
   gst: string;
 
   @Column({ nullable: true })
-  rate_1: string;
+  rate_one_2: string;
 
   @Column({ nullable: true })
-  rate_2: string;
+  rate_one_3: string;
 
   @Column({ nullable: true })
-  rate_3: string;
+  rate_one_4: string;
 
   @Column({ nullable: true })
-  rate_3a: string;
+  rate_one_4a: string;
 
   @Column({ nullable: true })
-  rate_4: string;
+  rate_one_5: string;
+
 
   @Column({ nullable: true })
   default_mrp: string;
@@ -53,9 +51,15 @@ export class StockItem {
   @Column({ nullable: true })
   ats_barcode: string;
 
+  // Additional fields used by backend logic but not in dump
+  @Column({ nullable: true })
+  group: string;
+
+  @Column({ nullable: true })
+  category: string;
+
   @Column({ nullable: true })
   last_purchase_cost: string;
-
 
   @Column({ default: true })
   is_active: boolean;
