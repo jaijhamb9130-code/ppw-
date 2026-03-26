@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getStockItems, syncStockItems } from '../api';
-import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw } from 'lucide-react';
+import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw, Plus } from 'lucide-react';
+import ItemDetailsPage from '../components/ItemDetailsPage';
 
 interface StockItem {
     masterid: string;
@@ -54,6 +55,7 @@ export default function StockReport() {
     const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, totalPages: 0 });
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [isSyncing, setIsSyncing] = useState(false);
+    const [showItemDetails, setShowItemDetails] = useState(false);
 
     const fetchData = useCallback(async (page: number, search: string) => {
         setLoading(true);
@@ -115,15 +117,26 @@ export default function StockReport() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 min-h-screen pb-20">
+        <div className="flex flex-col h-full bg-slate-50 min-h-screen pb-20 relative">
             {isSyncing && <SyncModal />}
+            {showItemDetails && <ItemDetailsPage onClose={() => setShowItemDetails(false)} />}
+
+
+            {/* FAB for Item Details */}
+            <button
+                onClick={() => setShowItemDetails(true)}
+                className="fixed bottom-24 right-5 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-indigo-700 active:scale-95 transition-all z-40 group border-4 border-white"
+                title="Add / Manage Item Details"
+            >
+                <Plus size={24} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
+            </button>
 
             {/* Simple Header */}
             <div className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-20 shadow-sm space-y-3">
                 <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2">
                         <img src="/ppw-logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-                        <h1 className="text-xl font-bold text-slate-800">Stock Report</h1>
+                        <h1 className="text-xl font-bold text-slate-800">Inventory</h1>
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="text-xs font-medium text-slate-500">

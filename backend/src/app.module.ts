@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { UserController } from './user.controller';
 import { AppService } from './app.service';
@@ -12,12 +14,20 @@ import { OrderDetail } from './entities/order-detail.entity';
 import { User } from './entities/user.entity';
 import { GodownEntry } from './entities/godown-entry.entity';
 import { Meta } from './entities/meta.entity';
+import { ItemDetail } from './entities/item-detail.entity';
+import { ItemImage } from './entities/item-image.entity';
 import { GodownController } from './godown.controller';
 import { TallyService } from './tally.service';
 import { AuthModule } from './auth/auth.module';
+import { ItemDetailsModule } from './item-details/item-details.module';
 @Module({
   imports: [
     AuthModule,
+    ItemDetailsModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'public'),
+      serveRoot: '/public',
+    }),
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
@@ -31,7 +41,7 @@ import { AuthModule } from './auth/auth.module';
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
         database: configService.get<string>('DB_NAME', 'tally_sync'),
-        entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry, Meta],
+        entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry, Meta, ItemDetail, ItemImage],
         synchronize: false, // Prevent auto-create tables or schema changes that might conflict with imported data
       }),
       inject: [ConfigService],
@@ -44,6 +54,8 @@ import { AuthModule } from './auth/auth.module';
       User,
       GodownEntry,
       Meta,
+      ItemDetail,
+      ItemImage,
     ]),
   ],
   controllers: [AppController, UserController, GodownController],

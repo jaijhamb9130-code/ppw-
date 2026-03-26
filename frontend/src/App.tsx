@@ -116,28 +116,30 @@ function Layout() {
 
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100">
-      {/* Global Ambient Background */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-indigo-300/10 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-pink-300/10 rounded-full blur-[100px]"></div>
-      </div>
+    <div className="min-h-screen bg-slate-200 flex justify-center font-sans selection:bg-indigo-100">
+      <div className="w-full max-w-md min-h-screen bg-slate-50 relative shadow-2xl overflow-x-hidden border-x border-slate-300">
+        
+        {/* Global Ambient Background */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-indigo-300/10 rounded-full blur-[120px]"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-pink-300/10 rounded-full blur-[100px]"></div>
+        </div>
 
-      {/* Main Content Area */}
-      <main className={`relative z-10 w-full h-full min-h-screen ${!hideNav ? 'pb-24' : ''}`}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
-          <Route path="/orders" element={<AuthGuard><OrderReport /></AuthGuard>} />
-          <Route path="/orders/:id" element={<AuthGuard><OrderDetail /></AuthGuard>} />
-          <Route path="/ledgers" element={<AuthGuard><LedgerReport /></AuthGuard>} />
-          <Route path="/stock-items" element={<AuthGuard><StockReport /></AuthGuard>} />
-          <Route path="/create-order" element={<AuthGuard><CreateOrder /></AuthGuard>} />
-          <Route path="/orders/edit/:id" element={<AuthGuard><CreateOrder /></AuthGuard>} />
-          <Route path="/profile" element={<AuthGuard><AdminProfile /></AuthGuard>} />
-          <Route path="/godown" element={<AuthGuard><Godown /></AuthGuard>} />
-        </Routes>
-      </main>
+        {/* Main Content Area */}
+        <main className={`relative z-10 w-full h-full min-h-screen ${!hideNav ? 'pb-24' : ''}`}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
+            <Route path="/orders" element={<AuthGuard><OrderReport /></AuthGuard>} />
+            <Route path="/orders/:id" element={<AuthGuard><OrderDetail /></AuthGuard>} />
+            <Route path="/ledgers" element={<AuthGuard><LedgerReport /></AuthGuard>} />
+            <Route path="/stock-items" element={<AuthGuard><StockReport /></AuthGuard>} />
+            <Route path="/create-order" element={<AuthGuard><CreateOrder /></AuthGuard>} />
+            <Route path="/orders/edit/:id" element={<AuthGuard><CreateOrder /></AuthGuard>} />
+            <Route path="/profile" element={<AuthGuard><AdminProfile /></AuthGuard>} />
+            <Route path="/godown" element={<AuthGuard><Godown /></AuthGuard>} />
+          </Routes>
+        </main>
 
       {/* Bottom Navigation Bar */}
       {!hideNav && (
@@ -174,6 +176,7 @@ function Layout() {
 
       {/* PWA Install Prompt */}
       <InstallPWA />
+      </div>
     </div>
   );
 }

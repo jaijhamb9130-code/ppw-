@@ -224,5 +224,22 @@ export const getUser = () => {
         return {};
     }
 };
+// Item Details
+export const getItemDetails = async (masterid: string) => {
+    const response = await api.get(`/item-details/${masterid}`);
+    return response.data;
+};
+
+export const saveItemDetails = async (masterid: string, formData: FormData) => {
+    const response = await api.post(`/item-details/${masterid}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+};
+
+export const deleteItemImage = async (masterid: string, slot: number) => {
+    const response = await api.delete(`/item-details/${masterid}/image/${slot}`);
+    return response.data;
+};
 
 export default api;

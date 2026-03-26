@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera, RefreshCw } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import BarcodeScanner from '../components/BarcodeScanner';
 import { getLedgers, getItemByBarcode, createOrder, getStockItems, createLedger, getOrderById, getOrderDetails, updateOrder, syncOrderToTally, getLiveStock, getDraftOrders, getStockGroups, getStockCategories } from '../api';
 import { useToast } from '../context/ToastContext';
 
@@ -236,87 +236,6 @@ export default function CreateOrder() {
     const [itemGst, setItemGst] = useState('');
     const [selectedSchemeName, setSelectedSchemeName] = useState<string>('');
     const [showScanner, setShowScanner] = useState(false);
-    const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
-    const scannerRef = useRef<Html5Qrcode | null>(null);
-
-    const startScanner = async (facing: 'environment' | 'user' = cameraFacing) => {
-        // If already running, stop first
-        if (scannerRef.current) {
-            try { await scannerRef.current.stop(); } catch {}
-            scannerRef.current = null;
-        }
-
-        // Check if camera API is available
-        if (!navigator.mediaDevices?.getUserMedia) {
-            showToast('Camera not available. Use localhost or HTTPS (ngrok).', 'error');
-            return;
-        }
-
-        setShowScanner(true);
-        setCameraFacing(facing);
-
-        // Small delay to let the DOM render the scanner div
-        await new Promise(r => setTimeout(r, 200));
-
-        try {
-            const scanner = new Html5Qrcode('barcode-scanner');
-            scannerRef.current = scanner;
-            await scanner.start(
-                { facingMode: facing },
-                { 
-                    fps: 20, 
-                    qrbox: { width: 250, height: 250 }
-                },
-                async (decodedText) => {
-                    await scanner.stop();
-                    scannerRef.current = null;
-                    setShowScanner(false);
-                    try {
-                        const item = await getItemByBarcode(decodedText);
-                        if (item) {
-                            setShowItemPopup(true);
-                            setFoundItem(item);
-                            setItemUnit(item.base_units || 'Nos');
-                            setItemGst(item.gst || '0');
-                            setItemRate('');
-                            setItemQty('');
-                            setItemDiscount('0');
-                            setSelectedSchemeName('');
-                            handleFetchLiveStock(item.masterid);
-                        } else {
-                            showToast('Item not found for barcode: ' + decodedText, 'error');
-                        }
-                    } catch {
-                        showToast('Error looking up scanned barcode', 'error');
-                    }
-                },
-                () => {}
-            );
-        } catch (err: any) {
-            const msg = err?.message || String(err);
-            if (msg.includes('Permission') || msg.includes('NotAllowed')) {
-                showToast('Camera permission denied. Allow camera in browser settings.', 'error');
-            } else if (msg.includes('NotFound') || msg.includes('Requested device not found')) {
-                showToast('No camera found on this device.', 'error');
-            } else {
-                showToast('Camera error: ' + msg, 'error');
-            }
-            setShowScanner(false);
-        }
-    };
-
-    const flipCamera = () => {
-        const newFacing = cameraFacing === 'environment' ? 'user' : 'environment';
-        startScanner(newFacing);
-    };
-
-    const stopScanner = async () => {
-        if (scannerRef.current) {
-            try { await scannerRef.current.stop(); } catch {}
-            scannerRef.current = null;
-        }
-        setShowScanner(false);
-    };
 
     const handleFetchLiveStock = async (stockItemId: string) => {
         setIsFetchingLiveStock(true);
@@ -772,31 +691,33 @@ export default function CreateOrder() {
                     <div className="relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input type="text" placeholder={isLocked ? "Order locked..." : "Type name or scan barcode..."} disabled={isLocked} className="w-full pl-11 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black outline-none uppercase disabled:opacity-50" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} />
-                        {!isLocked && <button onClick={() => startScanner()} className="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-600 text-white p-1.5 rounded-lg active:scale-95 transition-transform" title="Scan with Camera"><Camera size={16} /></button>}
+                        {!isLocked && <button onClick={() => setShowScanner(true)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-600 text-white p-1.5 rounded-lg active:scale-95 transition-transform" title="Scan with Camera"><Camera size={16} /></button>}
                     </div>
                     {showScanner && (
-                        <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 shadow-lg bg-black relative h-80 flex items-center justify-center">
-                            <div id="barcode-scanner" className="w-full h-full flex items-center justify-center [&_video]:!object-cover [&_video]:!object-center [&_canvas]:!hidden [&_#qr-shaded-region]:!hidden" />
-                            
-                            {/* Manual Centered Guide Overlay */}
-                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-                                <div className="w-[250px] h-[250px] relative">
-                                    {/* Corner Brackets */}
-                                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
-                                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
-                                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
-                                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
-                                    
-                                    {/* Scanning Laser Line */}
-                                    <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-scan-line"></div>
-                                </div>
-                            </div>
-
-                            <div className="absolute top-2 right-2 z-20 flex gap-1.5">
-                                <button onClick={flipCamera} className="bg-black/60 text-white p-1.5 rounded-full active:scale-95" title="Flip Camera"><RefreshCw size={14} /></button>
-                                <button onClick={stopScanner} className="bg-black/60 text-white p-1.5 rounded-full active:scale-95"><X size={14} /></button>
-                            </div>
-                        </div>
+                        <BarcodeScanner
+                            onResult={async (decodedText) => {
+                                setShowScanner(false);
+                                try {
+                                    const item = await getItemByBarcode(decodedText);
+                                    if (item) {
+                                        setShowItemPopup(true);
+                                        setFoundItem(item);
+                                        setItemUnit(item.base_units || 'Nos');
+                                        setItemGst(item.gst || '0');
+                                        setItemRate('');
+                                        setItemQty('');
+                                        setItemDiscount('0');
+                                        setSelectedSchemeName('');
+                                        handleFetchLiveStock(item.masterid);
+                                    } else {
+                                        showToast('Item not found for barcode: ' + decodedText, 'error');
+                                    }
+                                } catch {
+                                    showToast('Error looking up scanned barcode', 'error');
+                                }
+                            }}
+                            onClose={() => setShowScanner(false)}
+                        />
                     )}
                     {itemSearchLoading && (
                         <div className="mt-2 text-[10px] font-bold text-indigo-600 uppercase text-center animate-pulse">Searching...</div>
