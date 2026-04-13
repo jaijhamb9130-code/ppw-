@@ -26,7 +26,7 @@ async function bootstrap() {
     const clientPath = join(process.cwd(), 'client', 'index.html');
     if (existsSync(clientPath)) {
       const expressApp = app.getHttpAdapter().getInstance();
-      expressApp.get(/^\/(?!api|auth|public).*/, (req, res, next) => {
+      expressApp.get(/^\/(?!api|auth|public)[^.]*$/, (req, res, next) => {
         res.sendFile(clientPath);
       });
     }
