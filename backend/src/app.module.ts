@@ -24,17 +24,10 @@ import { ItemDetailsModule } from './item-details/item-details.module';
   imports: [
     AuthModule,
     ItemDetailsModule,
-    ServeStaticModule.forRoot(
-      {
-        rootPath: join(process.cwd(), 'public'),
-        serveRoot: '/public',
-      },
-      {
-        rootPath: join(process.cwd(), 'client'),
-        serveRoot: '/',
-        exclude: ['/api/(.*)', '/auth/(.*)', '/public/(.*)'],
-      },
-    ),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'public'),
+      serveRoot: '/public',
+    }),
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
