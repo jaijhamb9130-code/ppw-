@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, AlertCircle, LogOut, Package, FileText, ClipboardList, RefreshCw, ShoppingCart, IndianRupee, Calendar, ArrowRight } from 'lucide-react';
+import { CheckCircle, AlertCircle, LogOut, Package, FileText, ClipboardList, RefreshCw, ShoppingCart, IndianRupee, Calendar, ArrowRight, ScanLine } from 'lucide-react';
 import { getUser, getDashboardStats, syncLedgers, syncStockItems } from '../api';
 
 import { useNavigate } from 'react-router-dom';
@@ -320,6 +320,25 @@ export default function Dashboard() {
                                 <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-slate-500 group-hover:bg-indigo-500 group-hover:text-white transition-all">
                                     <ArrowRight size={16} strokeWidth={3} />
                                 </div>
+                            </div>
+                        </div>
+                    </Link>
+
+                    {/* Attach Barcode Card */}
+                    <Link to="/attach-barcode" className="group relative block p-5 bg-indigo-50 rounded-3xl shadow-sm border border-indigo-100 active:scale-[0.98] transition-all overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100/50 rounded-full blur-3xl -mr-10 -mb-10 group-hover:bg-indigo-200/50 transition-colors"></div>
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-50 group-hover:scale-110 transition-transform">
+                                    <ScanLine size={22} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-800 text-lg tracking-tight group-hover:text-indigo-600 transition-colors">Attach Barcode</h3>
+                                    <p className="text-[10px] font-bold text-slate-500 tracking-tight uppercase">Database Sync</p>
+                                </div>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-indigo-500 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                                <ArrowRight size={16} strokeWidth={3} />
                             </div>
                         </div>
                     </Link>

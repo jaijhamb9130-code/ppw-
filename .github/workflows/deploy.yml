@@ -1,0 +1,76 @@
+name: Deploy PPW to Elastic Beanstalk
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install & build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Install & build backend
+        run: |
+          cd backend
+          npm ci
+          npm run build
+
+      - name: Stage frontend build into backend/client/
+        run: |
+          rm -rf backend/client
+          mkdir -p backend/client
+          cp -r frontend/dist/. backend/client/
+
+      - name: Create deployment bundle
+        run: |
+          cd backend
+          zip -r ../deploy.zip \
+            package.json package-lock.json Procfile dist client \
+            -x "*.env" "*.log" "node_modules/*"
+
+      - name: Deploy to Elastic Beanstalk
+        id: deploy
+        continue-on-error: true
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ppw
+          environment_name: ppw-prod
+          version_label: gh-${{ github.run_number }}-${{ github.sha }}
+          region: ap-south-1
+          deployment_package: deploy.zip
+          wait_for_deployment: true
+          wait_for_environment_recovery: 0
+
+      - name: Verify app is responding
+        run: |
+          sleep 20
+          URL="http://ppw-prod.eba-ppzifyfu.ap-south-1.elasticbeanstalk.com/api/auth/login"
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
+              -H "Content-Type: application/json" -d '{}')
+            echo "Attempt $i — HTTP $CODE"
+            if [ "$CODE" = "401" ] || [ "$CODE" = "400" ] || [ "$CODE" = "201" ]; then
+              echo "App is responding correctly (backend alive)."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "App did not respond with expected status."
+          exit 1

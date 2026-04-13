@@ -10,6 +10,7 @@ import OrderDetail from './pages/OrderDetail';
 import Login from './pages/Login';
 import AdminProfile from './pages/AdminProfile';
 import Godown from './pages/Godown';
+import AttachBarcode from './pages/AttachBarcode';
 import { Plus, Users, LayoutGrid, ClipboardList } from 'lucide-react';
 import { getUser } from './api';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -107,7 +108,7 @@ function Layout() {
   }, [location, showNapModal]);
 
   // Hide bottom nav on specific pages
-  const hideNav = location.pathname === '/create-order' || location.pathname === '/login' || location.pathname.startsWith('/orders/edit/');
+  const hideNav = location.pathname === '/create-order' || location.pathname === '/login' || location.pathname.startsWith('/orders/edit/') || location.pathname === '/attach-barcode';
 
   // Get User Role
   const user = getUser();
@@ -138,6 +139,7 @@ function Layout() {
             <Route path="/orders/edit/:id" element={<AuthGuard><CreateOrder /></AuthGuard>} />
             <Route path="/profile" element={<AuthGuard><AdminProfile /></AuthGuard>} />
             <Route path="/godown" element={<AuthGuard><Godown /></AuthGuard>} />
+            <Route path="/attach-barcode" element={<AuthGuard><AttachBarcode /></AuthGuard>} />
           </Routes>
         </main>
 
@@ -146,15 +148,15 @@ function Layout() {
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <nav className="bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-safe">
             {/* ... navigation remains same ... */}
-            <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} h-16 max-w-md mx-auto`}>
-               {/* NavLinks here... (Keeping logic brief for replace tool) */}
+            <div className={`grid ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'} h-16 max-w-md mx-auto`}>
                {isAdmin ? (
-                   <NavLink to="/" icon={LayoutGrid} label="Home" />
+                 <NavLink to="/" icon={LayoutGrid} label="Home" />
                ) : (
-                   <NavLink to="/orders" icon={ClipboardList} label="History" />
+                 <NavLink to="/orders" icon={ClipboardList} label="History" />
                )}
 
                <NavLink to="/create-order" icon={Plus} label="New" />
+
                {isAdmin && (
                  <NavLink to="/profile" icon={Users} label="Roles" />
                )}

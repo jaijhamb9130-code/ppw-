@@ -55,4 +55,11 @@ export class OrderDetail {
 
   @Column({ nullable: true })
   category: string;
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'pending',
+  })
+  status: string;
 }

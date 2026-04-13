@@ -16,6 +16,9 @@ export class User {
   @Column({ nullable: true })
   number: string;
 
+  @Column({ nullable: true })
+  shop_name: string;
+
   @Column({ default: 'user' }) // admin, manager, employee
   role: string;
 

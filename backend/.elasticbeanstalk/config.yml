@@ -1,0 +1,18 @@
+branch-defaults:
+  main:
+    environment: ppw-prod
+    group_suffix: null
+global:
+  application_name: ppw
+  branch: null
+  default_ec2_keyname: admin-customer-key
+  default_platform: Node.js 20 running on 64bit Amazon Linux 2023
+  default_region: ap-south-1
+  include_git_submodules: true
+  instance_profile: null
+  platform_name: null
+  platform_version: null
+  profile: admin-customer
+  repository: null
+  sc: null
+  workspace_type: Application

@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Patch,
   Put,
   Query,
   Request,
@@ -194,9 +195,79 @@ export class AppController {
     return this.ledgerRepo.save(ledger);
   }
 
+  @Patch('orders/:id/finalize')
+  async finalizeOrder(@Param('id') id: string) {
+    const orderId = parseInt(id);
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId }
+    });
+    if (!order) throw new Error('Order not found');
+
+    const remainingPending = await this.orderDetailRepo.count({
+      where: { order: { id: orderId }, status: 'pending' }
+    });
+
+    if (remainingPending > 0) {
+        throw new HttpException('Cannot finalize order with pending items.', 400);
+    }
+
+    await this.orderRepo.update(orderId, { status: 'completed' });
+    return { success: true };
+  }
+
+  @Patch('orders/items/bulk-status')
+  async updateBulkStatus(@Body() body: { itemIds: number[], status: 'approved' | 'rejected' }) {
+    const { itemIds, status } = body;
+    if (!itemIds || itemIds.length === 0) return { success: true };
+    
+    // Update multiple items at once
+    await this.orderDetailRepo.update(itemIds, { status });
+    return { success: true };
+  }
+
+  @Patch('orders/items/:id')
+  async updateOrderItem(@Param('id') id: number, @Body() body: any) {
+    const item = await this.orderDetailRepo.findOne({
+      where: { id },
+      relations: ['order']
+    });
+
+    if (!item) throw new Error('Item not found');
+    
+    // STRICT RULE: Block if order is completed or fetched
+    if (item.order.status === 'completed' || item.order.status === 'fetched') {
+      throw new Error('Cannot edit items in a completed or synced order.');
+    }
+
+    const { quantity, rate, discount_percentage } = body;
+    item.quantity = quantity ?? item.quantity;
+    item.rate = rate ?? item.rate;
+    item.discount_percentage = discount_percentage ?? item.discount_percentage;
+    item.amount = (item.quantity * item.rate) * (1 - (item.discount_percentage / 100));
+    
+    await this.orderDetailRepo.save(item);
+
+    // Update order total
+    const allItems = await this.orderDetailRepo.find({ where: { order: { id: item.order.id } } });
+    const newTotal = allItems.reduce((sum, i) => sum + Number(i.amount), 0);
+    await this.orderRepo.save({ ...item.order, total_amount: newTotal });
+
+    return { success: true };
+  }
+
+  @Post('orders/online/sync')
+  async syncCompletedOrders() {
+    // Marks ALL 'completed' online orders as 'fetched'
+    await this.orderRepo.update(
+      { status: 'completed', source: 'online' },
+      { status: 'fetched' }
+    );
+    return { success: true };
+  }
+
   @Post('orders')
   async createOrder(@Body() body: any) {
-   try {
+    try {
     const {
       bill_number,
       ledger_id,
@@ -250,6 +321,7 @@ export class AppController {
     if (created_by) {
       order.created_by = created_by;
     }
+    order.source = 'admin';
 
     const savedOrder = await this.orderRepo.save(order);
 
@@ -542,6 +614,18 @@ export class AppController {
     }
   }
 
+  @Get('reports/stock-items/:id')
+  async getStockItemById(@Param('id') id: string) {
+    try {
+      const item = await this.stockRepo.findOne({ where: { id: parseInt(id) } });
+      if (!item) throw new Error('Stock item not found');
+      return item;
+    } catch (error) {
+      console.error('Error in getStockItemById:', error);
+      throw error;
+    }
+  }
+
   // Stock Items with pagination
   @Get('reports/stock-items')
   async getStockItems(
@@ -554,14 +638,19 @@ export class AppController {
   ) {
     try {
       const pageNum = Math.max(1, parseInt(page) || 1);
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+      const limitNum = Math.min(10000, Math.max(1, parseInt(limit) || 50));
       const skip = (pageNum - 1) * limitNum;
 
       const query = this.stockRepo.createQueryBuilder('stock');
       query.where('stock.is_active = true');
 
       if (parent) {
-        query.andWhere('stock.parent = :parent', { parent });
+        const parents = parent.split(',').map(p => p.trim()).filter(Boolean);
+        if (parents.length === 1) {
+          query.andWhere('stock.parent = :parent', { parent: parents[0] });
+        } else {
+          query.andWhere('stock.parent IN (:...parents)', { parents });
+        }
       }
 
       if (group) {
@@ -569,7 +658,12 @@ export class AppController {
       }
 
       if (category) {
-        query.andWhere('stock.category = :category', { category });
+        const cats = category.split(',').map(c => c.trim()).filter(Boolean);
+        if (cats.length === 1) {
+          query.andWhere('stock.category = :category', { category: cats[0] });
+        } else {
+          query.andWhere('stock.category IN (:...cats)', { cats });
+        }
       }
 
       if (search) {
@@ -630,18 +724,55 @@ export class AppController {
     }
   }
 
+  @Get('stock-items/brands')
+  async getStockBrands(@Query('search') search: string = '') {
+    try {
+      const query = this.stockRepo
+        .createQueryBuilder('stock')
+        .select('DISTINCT stock.parent', 'brand')
+        .where("stock.parent IS NOT NULL AND stock.parent != '' AND stock.is_active = true");
+
+      if (search) {
+        const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
+        const cleanBrand = this.cleanSql('stock.parent');
+        query.andWhere(
+          `(stock.parent LIKE :search OR ${cleanBrand} LIKE :cleanSearch)`,
+          { search: `%${search}%`, cleanSearch: `%${cleanSearch}%` },
+        );
+      }
+
+      const result = await query.orderBy('stock.parent', 'ASC').getRawMany();
+      return result.map((r) => r.brand);
+    } catch (error) {
+      console.error('Error in getStockBrands:', error);
+      throw error;
+    }
+  }
+
   @Get('stock-items/parents')
   async getStockParents(@Query('search') search: string = '') {
-    return this.getStockGroups(search);
+    return this.getStockBrands(search);
   }
 
   @Get('stock-items/groups')
-  async getStockGroups(@Query('search') search: string = '') {
+  async getStockGroups(
+    @Query('search') search: string = '',
+    @Query('brand') brand: string = '',
+  ) {
     try {
       const query = this.stockRepo
         .createQueryBuilder('stock')
         .select('DISTINCT stock.group', 'group')
-        .where("stock.group IS NOT NULL AND stock.group != ''");
+        .where("stock.group IS NOT NULL AND stock.group != '' AND stock.is_active = true AND stock.group != stock.parent");
+
+      if (brand) {
+        const brands = brand.split(',').map(b => b.trim()).filter(Boolean);
+        if (brands.length === 1) {
+          query.andWhere('stock.parent = :brand', { brand: brands[0] });
+        } else {
+          query.andWhere('stock.parent IN (:...brands)', { brands });
+        }
+      }
 
       if (search) {
         const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
@@ -653,18 +784,7 @@ export class AppController {
       }
 
       const result = await query.orderBy('stock.group', 'ASC').getRawMany();
-      let groups = result.map((r) => r.group);
-
-      // Fallback: If no groups found, try getting distinct parents
-      if (groups.length === 0) {
-        const parentResult = await this.stockRepo
-          .createQueryBuilder('stock')
-          .select('DISTINCT stock.parent', 'parent')
-          .where("stock.parent IS NOT NULL AND stock.parent != ''")
-          .orderBy('stock.parent', 'ASC')
-          .getRawMany();
-        groups = parentResult.map((r) => r.parent);
-      }
+      const groups = result.map((r) => r.group);
 
       return groups;
     } catch (error) {
@@ -674,12 +794,24 @@ export class AppController {
   }
 
   @Get('stock-items/categories')
-  async getStockCategories(@Query('search') search: string = '') {
+  async getStockCategories(
+    @Query('search') search: string = '',
+    @Query('brand') brand: string = '',
+  ) {
     try {
       const query = this.stockRepo
         .createQueryBuilder('stock')
         .select('DISTINCT stock.category', 'category')
-        .where("stock.category IS NOT NULL AND stock.category != ''");
+        .where("stock.category IS NOT NULL AND stock.category != '' AND stock.is_active = true");
+
+      if (brand) {
+        const brands = brand.split(',').map(b => b.trim()).filter(Boolean);
+        if (brands.length === 1) {
+          query.andWhere('stock.parent = :brand', { brand: brands[0] });
+        } else {
+          query.andWhere('stock.parent IN (:...brands)', { brands });
+        }
+      }
 
       if (search) {
         const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
@@ -725,6 +857,7 @@ export class AppController {
     @Query('order_type') orderType: string = '',
     @Query('range') range: string = '', // New param: 'fy'
     @Query('status') status: string = '', // New param: 'inedit', 'pending', etc.
+    @Query('source') source: string = '', // New param: 'admin' or 'online'
   ) {
     try {
       const pageNum = Math.max(1, parseInt(page) || 1);
@@ -761,10 +894,13 @@ export class AppController {
           `(${cleanBill} LIKE :cleanSearch 
               OR ${cleanLedgerName} LIKE :cleanSearch 
               OR ${cleanCreator} LIKE :cleanSearch
+              OR CAST(order.id AS CHAR) LIKE :search
               OR ${cleanAmount} LIKE :cleanSearch
               OR order.date LIKE :search
               OR order.bill_number LIKE :search
               OR ledger.name LIKE :search
+              OR order.customer_name LIKE :search
+              OR order.customer_phone LIKE :search
             )`,
           { search: `%${search}%`, cleanSearch: `%${cleanSearch}%` },
         );
@@ -838,6 +974,12 @@ export class AppController {
         else { query.where(condition, { status }); hasWhere = true; }
       }
 
+      if (source) {
+        const condition = 'order.source = :sourceFilter';
+        if (hasWhere) query.andWhere(condition, { sourceFilter: source });
+        else { query.where(condition, { sourceFilter: source }); hasWhere = true; }
+      }
+
       const [data, total] = await query
         .skip(skip)
         .take(limitNum)
@@ -858,20 +1000,32 @@ export class AppController {
     }
   }
 
+  @Get('orders/customer/:phone')
+  async getOrdersByCustomerPhone(@Param('phone') phone: string) {
+    if (!phone) throw new HttpException('Phone number is required', 400);
+
+    const orders = await this.orderRepo.find({
+      where: { customer_phone: phone },
+      relations: ['orderDetails'],
+      order: { date: 'DESC', id: 'DESC' },
+      take: 20,
+    });
+
+    return orders;
+  }
+
+  @Get('orders/:id/details')
+  async getOrderDetails(@Param('id') id: number) {
+    return this.orderDetailRepo.find({
+      where: { order: { id } },
+    });
+  }
+
   @Get('orders/:id')
   async getOrderById(@Param('id') id: number) {
     return this.orderRepo.findOne({
       where: { id },
       relations: ['ledger'],
-    });
-  }
-
-  @Get('orders/:id/details')
-  async getOrderDetails(@Param('id') id: number) {
-    // Do NOT join stock_item — use item_name from order_detail directly
-    // (stock_item_id may point to wrong item in local DB; item_name is always correct)
-    return this.orderDetailRepo.find({
-      where: { order: { id } },
     });
   }
 
@@ -952,6 +1106,7 @@ export class AppController {
       // Reset status to 'inedit' if it was 'pending' and we edited it?
       // User logic: "they will save... this inedit". Assume edit puts it back to draft.
       order.status = 'inedit';
+      order.source = 'admin';
 
       const savedOrder = await this.orderRepo.save(order);
 

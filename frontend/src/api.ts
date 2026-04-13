@@ -118,7 +118,12 @@ export const getLiveStock = async (id: string) => {
     return response.data;
 };
 
-export const getOrders = async (page = 1, limit = 50, search = '', orderType = '', userIdOverride?: number, date?: string, range?: string, status = '') => {
+export const updateItemBarcode = async (masterid: string, barcode: string) => {
+    const response = await api.put(`/stock-items/${masterid}/barcode`, { barcode });
+    return response.data;
+};
+
+export const getOrders = async (page = 1, limit = 50, search = '', orderType = '', userIdOverride?: number, date?: string, range?: string, status = '', source = '') => {
     const user = getUser();
     const response = await api.get('/reports/orders', {
         params: {
@@ -131,7 +136,8 @@ export const getOrders = async (page = 1, limit = 50, search = '', orderType = '
             order_type: orderType || undefined,
             date: date || undefined,
             range: range || undefined,
-            status: status || undefined
+            status: status || undefined,
+            source: source || undefined
         },
     });
     return response.data;

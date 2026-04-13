@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera, RefreshCw } from 'lucide-react';
+import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera } from 'lucide-react';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { getLedgers, getItemByBarcode, createOrder, getStockItems, createLedger, getOrderById, getOrderDetails, updateOrder, syncOrderToTally, getLiveStock, getDraftOrders, getStockGroups, getStockCategories } from '../api';
 import { useToast } from '../context/ToastContext';
@@ -847,7 +847,7 @@ export default function CreateOrder() {
                                     <Scan className="absolute left-3 top-3.5 text-indigo-500" size={20} />
                                     <input type="text" className="w-full pl-10 pr-24 py-3 bg-slate-50 border border-slate-200 rounded-lg font-bold outline-none" placeholder="Scan Barcode..." value={barcodeQuery} onChange={(e) => setBarcodeQuery(e.target.value)} onKeyDown={handleBarcodeSearch} autoFocus />
                                     <div className="absolute right-2 top-2 bottom-2 flex gap-1">
-                                        <button onClick={() => startScanner()} className="bg-indigo-600 text-white rounded-lg px-3 active:scale-95 transition-transform" title="Scan with Camera"><Camera size={20} /></button>
+                                        <button onClick={() => setShowScanner(true)} className="bg-indigo-600 text-white rounded-lg px-3 active:scale-95 transition-transform" title="Scan with Camera"><Camera size={20} /></button>
                                         <button onClick={handleBarcodeSearch} className="bg-indigo-100 text-indigo-600 rounded-lg px-3"><ArrowRight size={20} /></button>
                                     </div>
                                 </div>

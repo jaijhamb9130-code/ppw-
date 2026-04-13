@@ -9,4 +9,4 @@ RUN npm ci --only=production
 COPY dist ./dist
 COPY .env ./
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

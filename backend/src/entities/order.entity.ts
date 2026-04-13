@@ -29,12 +29,12 @@ export class Order {
   @Index()
   @Column({
     type: 'enum',
-    enum: ['inedit', 'pending', 'fetched'],
+    enum: ['inedit', 'pending', 'completed', 'fetched'],
     default: 'inedit',
   })
-  status: 'inedit' | 'pending' | 'fetched';
+  status: 'inedit' | 'pending' | 'completed' | 'fetched';
 
-  @ManyToOne(() => Ledger)
+  @ManyToOne(() => Ledger, { nullable: true })
   ledger: Ledger;
 
   @Column({ nullable: true })
@@ -54,6 +54,9 @@ export class Order {
 
   @Column({ nullable: true })
   customer_pincode: string;
+
+  @Column({ nullable: true })
+  customer_city: string;
 
   @Column({ nullable: true })
   customer_state: string;
@@ -80,6 +83,14 @@ export class Order {
 
   @Column({ nullable: true, type: 'text' })
   remark: string;
+
+  @Index()
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'admin',
+  })
+  source: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   amount_given: number;
