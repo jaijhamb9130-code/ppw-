@@ -20,7 +20,12 @@ async function bootstrap() {
     app.use(urlencoded({ extended: true, limit: '50mb' }));
     app.setGlobalPrefix('api');
     app.enableCors({
-      origin: true,
+      origin: [
+        'https://onlineppw.com',
+        'https://www.onlineppw.com',
+        'http://localhost:5173',
+        'http://localhost:5174',
+      ],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       credentials: true,
     });
