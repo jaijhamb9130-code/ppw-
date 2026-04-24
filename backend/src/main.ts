@@ -25,6 +25,7 @@ async function bootstrap() {
         'https://www.onlineppw.com',
         'http://localhost:5173',
         'http://localhost:5174',
+        'http://localhost:5180',
       ],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       credentials: true,

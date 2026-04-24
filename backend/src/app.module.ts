@@ -15,7 +15,7 @@ import { User } from './entities/user.entity';
 import { GodownEntry } from './entities/godown-entry.entity';
 import { Meta } from './entities/meta.entity';
 import { ItemDetail } from './entities/item-detail.entity';
-import { ItemImage } from './entities/item-image.entity';
+import { ItemMedia } from './entities/item-media.entity';
 import { GodownController } from './godown.controller';
 import { TallyService } from './tally.service';
 import { AuthModule } from './auth/auth.module';
@@ -41,8 +41,8 @@ import { ItemDetailsModule } from './item-details/item-details.module';
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
         database: configService.get<string>('DB_NAME', 'tally_sync'),
-        entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry, Meta, ItemDetail, ItemImage],
-        synchronize: false, // Prevent auto-create tables or schema changes that might conflict with imported data
+        entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry, Meta, ItemDetail, ItemMedia],
+        synchronize: true, // Auto-create/sync tables to fix schema mismatches from imported data
       }),
       inject: [ConfigService],
     }),
@@ -55,7 +55,7 @@ import { ItemDetailsModule } from './item-details/item-details.module';
       GodownEntry,
       Meta,
       ItemDetail,
-      ItemImage,
+      ItemMedia,
     ]),
   ],
   controllers: [AppController, UserController, GodownController],

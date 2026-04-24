@@ -243,8 +243,8 @@ export const saveItemDetails = async (masterid: string, formData: FormData) => {
     return response.data;
 };
 
-export const deleteItemImage = async (masterid: string, slot: number) => {
-    const response = await api.delete(`/item-details/${masterid}/image/${slot}`);
+export const deleteItemMedia = async (masterid: string, slot: string) => {
+    const response = await api.delete(`/item-details/${masterid}/media/${slot}`);
     return response.data;
 };
 

@@ -1,4 +1,7 @@
 branch-defaults:
+  default:
+    environment: ppw-prod
+    group_suffix: null
   main:
     environment: ppw-prod
     group_suffix: null
@@ -12,7 +15,7 @@ global:
   instance_profile: null
   platform_name: null
   platform_version: null
-  profile: admin-customer
+  profile: null
   repository: null
   sc: null
   workspace_type: Application
