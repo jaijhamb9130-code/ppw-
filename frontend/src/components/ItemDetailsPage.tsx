@@ -118,16 +118,17 @@ export default function ItemDetailsPage({ onClose }: Props) {
             setDescription(desc);
             setSavedDescription(desc);
 
+            const toUrl = (u: string) => u.startsWith('http') ? u : `/${u}`;
             const slots: ImageSlot[] = [1, 2, 3, 4].map(n => {
                 const m = data.media?.find((x: any) => x.slot === `img${n}`);
-                return { slot: n, file: null, previewUrl: m ? `/${m.url}` : null, serverUrl: m ? `/${m.url}` : null, originalName: m?.url_name || null };
+                return { slot: n, file: null, previewUrl: m ? toUrl(m.url) : null, serverUrl: m ? toUrl(m.url) : null, originalName: m?.url_name || null };
             });
             setImageSlots(slots);
             setSavedImageSlots(JSON.parse(JSON.stringify(slots)));
 
             const vslots: VideoSlot[] = [1, 2].map(n => {
                 const m = data.media?.find((x: any) => x.slot === `vid${n}`);
-                return { slot: n, file: null, previewUrl: m ? `/${m.url}` : null, serverUrl: m ? `/${m.url}` : null, originalName: m?.url_name || null, duration: null };
+                return { slot: n, file: null, previewUrl: m ? toUrl(m.url) : null, serverUrl: m ? toUrl(m.url) : null, originalName: m?.url_name || null, duration: null };
             });
             setVideoSlots(vslots);
             setSavedVideoSlots(JSON.parse(JSON.stringify(vslots)));

@@ -7,6 +7,7 @@ import { StockItem } from '../entities/stock-item.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const ffmpeg = require('fluent-ffmpeg');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -15,8 +16,10 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 @Injectable()
 export class ItemDetailsService {
-  private imgDir: string;
-  private vidDir: string;
+  private s3: S3Client;
+  private bucket: string;
+  private region: string;
+  private tmpDir: string;
 
   constructor(
     @InjectRepository(ItemDetail)
@@ -26,21 +29,21 @@ export class ItemDetailsService {
     @InjectRepository(StockItem)
     private stockItemRepo: Repository<StockItem>,
   ) {
-    this.imgDir = path.join(process.cwd(), 'public', 'uploads', 'items');
-    this.vidDir = path.join(process.cwd(), 'public', 'uploads', 'items', 'videos');
-    for (const dir of [this.imgDir, this.vidDir]) {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    }
+    this.region = process.env.AWS_REGION || 'ap-south-1';
+    this.bucket = process.env.S3_BUCKET_NAME!;
+    this.s3 = new S3Client({ region: this.region });
+    this.tmpDir = path.join(process.cwd(), 'tmp', 'videos');
+    if (!fs.existsSync(this.tmpDir)) fs.mkdirSync(this.tmpDir, { recursive: true });
   }
 
-  private fileUrl(urlName: string, slot: string): string {
+  private s3Key(urlName: string, slot: string): string {
     return slot.startsWith('vid')
-      ? `public/uploads/items/videos/${urlName}.webm`
-      : `public/uploads/items/${urlName}.webp`;
+      ? `uploads/items/videos/${urlName}.webm`
+      : `uploads/items/${urlName}.webp`;
   }
 
-  private filePath(urlName: string, slot: string): string {
-    return path.join(process.cwd(), this.fileUrl(urlName, slot));
+  private s3Url(urlName: string, slot: string): string {
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${this.s3Key(urlName, slot)}`;
   }
 
   async getDetails(masterid: string) {
@@ -51,7 +54,7 @@ export class ItemDetailsService {
     });
     const media = rawMedia.map((m) => ({
       ...m,
-      url: this.fileUrl(m.url_name, m.slot),
+      url: this.s3Url(m.url_name, m.slot),
     }));
     return { detail, media };
   }
@@ -77,6 +80,15 @@ export class ItemDetailsService {
     });
   }
 
+  private async deleteFromS3(urlName: string, slot: string): Promise<void> {
+    try {
+      await this.s3.send(new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: this.s3Key(urlName, slot),
+      }));
+    } catch { /* ignore missing */ }
+  }
+
   async saveDetails(
     masterid: string,
     description: string,
@@ -89,7 +101,6 @@ export class ItemDetailsService {
       await this.stockItemRepo.update({ masterid }, { name });
     }
 
-    // Upsert description
     let detail = await this.detailRepo.findOne({ where: { masterid } });
     if (detail) {
       detail.description = description;
@@ -99,40 +110,49 @@ export class ItemDetailsService {
     }
     await this.detailRepo.save(detail);
 
-    // Remove deleted slots
     for (const slot of removedSlots) {
       await this.deleteMedia(masterid, slot);
     }
 
-    // Get item code from ats_barcode or first word of item name (e.g. "001627 BP 10/-" → "001627")
     const stockItem = await this.stockItemRepo.findOne({ where: { masterid } });
     const nameCode = stockItem?.name?.match(/^(\S+)/)?.[1];
     const code = stockItem?.ats_barcode || nameCode || masterid;
 
-    // Save + compress new media
     for (const { slot, file } of mediaFiles) {
-      // Remove existing record for this slot
       const existing = await this.mediaRepo.findOne({ where: { masterid, slot } });
       if (existing) {
-        const fp = this.filePath(existing.url_name, slot);
-        if (fs.existsSync(fp)) fs.unlinkSync(fp);
+        await this.deleteFromS3(existing.url_name, slot);
         await this.mediaRepo.remove(existing);
       }
 
-      const urlName = `${code}${slot}`; // e.g. 000078img1
+      const urlName = `${code}${slot}`;
+      const key = this.s3Key(urlName, slot);
 
       if (slot.startsWith('vid')) {
-        const tempPath = path.join(this.vidDir, `tmp_${Date.now()}.webm`);
-        const outPath = path.join(this.vidDir, `${urlName}.webm`);
-        fs.writeFileSync(tempPath, file.buffer);
+        const tempIn = path.join(this.tmpDir, `in_${Date.now()}.webm`);
+        const tempOut = path.join(this.tmpDir, `out_${Date.now()}.webm`);
+        fs.writeFileSync(tempIn, file.buffer);
         try {
-          await this.compressVideo(tempPath, outPath);
+          await this.compressVideo(tempIn, tempOut);
+          const videoBuffer = fs.readFileSync(tempOut);
+          await this.s3.send(new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            Body: videoBuffer,
+            ContentType: 'video/webm',
+          }));
         } finally {
-          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+          if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
+          if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
         }
       } else {
         const compressed = await this.compressImage(file.buffer);
-        fs.writeFileSync(path.join(this.imgDir, `${urlName}.webp`), compressed);
+        await this.s3.send(new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: compressed,
+          ContentType: 'image/webp',
+        }));
       }
 
       const type = slot.startsWith('vid') ? 'video' : 'image';
@@ -147,8 +167,7 @@ export class ItemDetailsService {
   async deleteMedia(masterid: string, slot: string) {
     const existing = await this.mediaRepo.findOne({ where: { masterid, slot } });
     if (existing) {
-      const fp = this.filePath(existing.url_name, slot);
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+      await this.deleteFromS3(existing.url_name, slot);
       await this.mediaRepo.remove(existing);
     }
     return { success: true };
