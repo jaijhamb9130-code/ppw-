@@ -21,7 +21,7 @@ export class ItemDetailsController {
   }
 
   @Post(':masterid')
-  @UseInterceptors(AnyFilesInterceptor({ limits: { fileSize: 100 * 1024 * 1024 } }))
+  @UseInterceptors(AnyFilesInterceptor({ limits: { fileSize: 500 * 1024 * 1024 } }))
   async saveDetails(
     @Param('masterid') masterid: string,
     @Body() body: any,
