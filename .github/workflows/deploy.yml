@@ -40,7 +40,7 @@ jobs:
         run: |
           cd backend
           zip -r ../deploy.zip \
-            package.json package-lock.json Procfile dist client \
+            package.json package-lock.json Procfile dist client .platform \
             -x "*.env" "*.log" "node_modules/*"
 
       - name: Deploy to Elastic Beanstalk
