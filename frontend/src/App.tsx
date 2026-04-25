@@ -15,7 +15,6 @@ import { Plus, Users, LayoutGrid, ClipboardList, Package } from 'lucide-react';
 import { getUser } from './api';
 import { ConfirmModal } from './components/ConfirmModal';
 import { InstallPWA } from './components/InstallPWA';
-import { ProfileHeader } from './components/ProfileHeader';
 import { canAccess, getDefaultRoute } from './utils';
 
 // Auth + role-aware guard. Logged-in users without permission for the path
@@ -134,11 +133,8 @@ function Layout() {
           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-pink-300/10 rounded-full blur-[100px]"></div>
         </div>
 
-        {/* Top Profile Header (hidden on login) */}
-        {isLoggedIn && location.pathname !== '/login' && <ProfileHeader />}
-
         {/* Main Content Area */}
-        <main className={`relative z-10 w-full h-full min-h-screen ${isLoggedIn && location.pathname !== '/login' ? 'pt-14' : ''} ${!hideNav ? 'pb-24' : ''}`}>
+        <main className={`relative z-10 w-full h-full min-h-screen ${!hideNav ? 'pb-24' : ''}`}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<AuthGuard path="/"><Dashboard /></AuthGuard>} />

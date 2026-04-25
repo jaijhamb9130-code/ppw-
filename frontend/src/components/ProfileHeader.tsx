@@ -28,9 +28,7 @@ export function ProfileHeader() {
   const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
-      <div className="w-full max-w-md h-14 flex items-center justify-end px-4 pointer-events-auto">
-        <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen((v) => !v)}
             className="flex items-center gap-2 p-1.5 rounded-full bg-white/90 backdrop-blur border border-slate-200 shadow-sm transition-all active:scale-95"
@@ -85,8 +83,6 @@ export function ProfileHeader() {
               </div>
             </div>
           )}
-        </div>
-      </div>
     </div>
   );
 }
