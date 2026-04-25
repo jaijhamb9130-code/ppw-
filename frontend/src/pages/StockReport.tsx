@@ -56,9 +56,7 @@ export default function StockReport() {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [isSyncing, setIsSyncing] = useState(false);
     const [showItemDetails, setShowItemDetails] = useState(false);
-    const role = getUser()?.role;
-    const isAdmin = role === 'admin';
-    const isManager = role === 'manager';
+    const isAdmin = getUser()?.role === 'admin';
 
     const fetchData = useCallback(async (page: number, search: string) => {
         setLoading(true);
