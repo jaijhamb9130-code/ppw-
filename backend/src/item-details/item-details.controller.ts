@@ -7,17 +7,29 @@ import {
   UploadedFiles,
   UseInterceptors,
   Delete,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ItemDetailsService } from './item-details.service';
+
+function originOf(req: Request): string {
+  const proto =
+    (req.headers['x-forwarded-proto'] as string)?.split(',')[0]?.trim() ||
+    req.protocol;
+  const host =
+    (req.headers['x-forwarded-host'] as string)?.split(',')[0]?.trim() ||
+    req.get('host');
+  return `${proto}://${host}`;
+}
 
 @Controller('item-details')
 export class ItemDetailsController {
   constructor(private readonly service: ItemDetailsService) {}
 
   @Get(':masterid')
-  async getDetails(@Param('masterid') masterid: string) {
-    return this.service.getDetails(masterid);
+  async getDetails(@Param('masterid') masterid: string, @Req() req: Request) {
+    return this.service.getDetails(masterid, originOf(req));
   }
 
   @Post(':masterid')
@@ -26,6 +38,7 @@ export class ItemDetailsController {
     @Param('masterid') masterid: string,
     @Body() body: any,
     @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: Request,
   ) {
     const description = body.description || '';
     const name = body.name || undefined;
@@ -44,7 +57,15 @@ export class ItemDetailsController {
       return { slot, file };
     });
 
-    return this.service.saveDetails(masterid, description, userId, mediaFiles, removedSlots, name);
+    return this.service.saveDetails(
+      masterid,
+      description,
+      userId,
+      mediaFiles,
+      removedSlots,
+      name,
+      originOf(req),
+    );
   }
 
   @Delete(':masterid/media/:slot')
