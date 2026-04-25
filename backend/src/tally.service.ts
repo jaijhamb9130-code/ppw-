@@ -15,6 +15,7 @@ export class TallyService {
   private readonly logger = new Logger(TallyService.name);
   private readonly tallyUrl: string;
   private readonly companyName: string;
+  private readonly isTallyConfigured: boolean;
 
   constructor(
     @InjectRepository(Ledger)
@@ -28,26 +29,51 @@ export class TallyService {
     private metaRepository: Repository<Meta>,
     private configService: ConfigService,
   ) {
-    this.tallyUrl = this.configService.get<string>(
-      'TALLY_URL',
-      'http://localhost:9000',
-    );
+    const rawUrl = this.configService.get<string>('TALLY_URL', '').trim();
+    const normalized =
+      rawUrl && !/^https?:\/\//i.test(rawUrl) ? `http://${rawUrl}` : rawUrl;
+
+    let validUrl = '';
+    if (normalized) {
+      try {
+        new URL(normalized);
+        validUrl = normalized;
+      } catch {
+        this.logger.warn(
+          `Invalid TALLY_URL "${rawUrl}" — Tally sync disabled.`,
+        );
+      }
+    }
+
+    this.tallyUrl = validUrl;
+    this.isTallyConfigured = Boolean(validUrl);
     this.companyName = this.configService.get<string>(
       'TALLY_COMPANY',
       '6 PPW [25-26]',
     );
+
+    if (!this.isTallyConfigured) {
+      this.logger.warn(
+        'TALLY_URL is not set or invalid — scheduled Tally sync will be skipped. ' +
+          'Set TALLY_URL (e.g. http://localhost:9000) to enable sync.',
+      );
+    }
   }
 
-  // Auto-Sync at 11:45 PM every day
-  // "45 23 * * *" = 23:45 (11:45 PM)
-  // Updated to run every hour as requested
   @Cron('0 * * * *')
   async handleScheduledSync() {
+    if (!this.isTallyConfigured) {
+      return;
+    }
     this.logger.log('Executing scheduled Tally Sync (Hourly)...');
     await this.syncAll();
   }
 
   async syncAll() {
+    if (!this.isTallyConfigured) {
+      this.logger.warn('Tally sync skipped — TALLY_URL not configured.');
+      return { message: 'Tally sync disabled', ledgers: 0, stockItems: 0 };
+    }
     try {
       const ledgerCount = await this.fetchAndSaveLedgers();
       const stockCount = await this.fetchAndSaveStockItems();
