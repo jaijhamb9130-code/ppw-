@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../api';
 import { Lock, User } from 'lucide-react';
+import { getDefaultRoute } from '../utils';
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -25,8 +26,8 @@ export default function Login() {
             }
             localStorage.setItem('token', access_token);
 
-            // Redirect to Dashboard
-            window.location.href = '/';
+            // Redirect to the user's role-default page
+            window.location.href = getDefaultRoute(user);
         } catch (err: any) {
             console.error(err);
             setError('Invalid username or password');

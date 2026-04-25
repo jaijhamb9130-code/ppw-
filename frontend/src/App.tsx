@@ -11,16 +11,21 @@ import Login from './pages/Login';
 import AdminProfile from './pages/AdminProfile';
 import Godown from './pages/Godown';
 import AttachBarcode from './pages/AttachBarcode';
-import { Plus, Users, LayoutGrid, ClipboardList } from 'lucide-react';
+import { Plus, Users, LayoutGrid, ClipboardList, Package } from 'lucide-react';
 import { getUser } from './api';
 import { ConfirmModal } from './components/ConfirmModal';
 import { InstallPWA } from './components/InstallPWA';
+import { ProfileHeader } from './components/ProfileHeader';
+import { canAccess, getDefaultRoute } from './utils';
 
-// Simple Auth Guard
-function AuthGuard({ children }: { children: React.ReactElement }) {
-  const user = localStorage.getItem('user');
-  if (!user) {
-    return <Navigate to="/login" replace />;
+// Auth + role-aware guard. Logged-in users without permission for the path
+// are bounced to whichever default route their role allows.
+function AuthGuard({ children, path }: { children: React.ReactElement; path?: string }) {
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return <Navigate to="/login" replace />;
+  const user = JSON.parse(userStr);
+  if (path && !canAccess(user, path)) {
+    return <Navigate to={getDefaultRoute(user)} replace />;
   }
   return children;
 }
@@ -112,8 +117,11 @@ function Layout() {
 
   // Get User Role
   const user = getUser();
-  // Manager is now treated as Staff (only Godown access) per user request
-  const isAdmin = user.role === 'admin';
+  const role = user?.role;
+  const isAdmin = role === 'admin';
+  const isManager = role === 'manager';
+  const isEmployee = role === 'employee';
+  const isLoggedIn = !!user?.username;
 
 
   return (
@@ -126,40 +134,45 @@ function Layout() {
           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-pink-300/10 rounded-full blur-[100px]"></div>
         </div>
 
+        {/* Top Profile Header (hidden on login) */}
+        {isLoggedIn && location.pathname !== '/login' && <ProfileHeader />}
+
         {/* Main Content Area */}
-        <main className={`relative z-10 w-full h-full min-h-screen ${!hideNav ? 'pb-24' : ''}`}>
+        <main className={`relative z-10 w-full h-full min-h-screen ${isLoggedIn && location.pathname !== '/login' ? 'pt-14' : ''} ${!hideNav ? 'pb-24' : ''}`}>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
-            <Route path="/orders" element={<AuthGuard><OrderReport /></AuthGuard>} />
-            <Route path="/orders/:id" element={<AuthGuard><OrderDetail /></AuthGuard>} />
-            <Route path="/ledgers" element={<AuthGuard><LedgerReport /></AuthGuard>} />
-            <Route path="/stock-items" element={<AuthGuard><StockReport /></AuthGuard>} />
-            <Route path="/create-order" element={<AuthGuard><CreateOrder /></AuthGuard>} />
-            <Route path="/orders/edit/:id" element={<AuthGuard><CreateOrder /></AuthGuard>} />
-            <Route path="/profile" element={<AuthGuard><AdminProfile /></AuthGuard>} />
-            <Route path="/godown" element={<AuthGuard><Godown /></AuthGuard>} />
-            <Route path="/attach-barcode" element={<AuthGuard><AttachBarcode /></AuthGuard>} />
+            <Route path="/" element={<AuthGuard path="/"><Dashboard /></AuthGuard>} />
+            <Route path="/orders" element={<AuthGuard path="/orders"><OrderReport /></AuthGuard>} />
+            <Route path="/orders/:id" element={<AuthGuard path="/orders/:id"><OrderDetail /></AuthGuard>} />
+            <Route path="/ledgers" element={<AuthGuard path="/ledgers"><LedgerReport /></AuthGuard>} />
+            <Route path="/stock-items" element={<AuthGuard path="/stock-items"><StockReport /></AuthGuard>} />
+            <Route path="/create-order" element={<AuthGuard path="/create-order"><CreateOrder /></AuthGuard>} />
+            <Route path="/orders/edit/:id" element={<AuthGuard path="/orders/edit"><CreateOrder /></AuthGuard>} />
+            <Route path="/profile" element={<AuthGuard path="/profile"><AdminProfile /></AuthGuard>} />
+            <Route path="/godown" element={<AuthGuard path="/godown"><Godown /></AuthGuard>} />
+            <Route path="/attach-barcode" element={<AuthGuard path="/attach-barcode"><AttachBarcode /></AuthGuard>} />
           </Routes>
         </main>
 
-      {/* Bottom Navigation Bar */}
-      {!hideNav && (
+      {/* Bottom Navigation Bar — filtered by role */}
+      {!hideNav && isLoggedIn && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <nav className="bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-safe">
-            {/* ... navigation remains same ... */}
-            <div className={`grid ${isAdmin ? 'grid-cols-4' : 'grid-cols-2'} h-16 max-w-md mx-auto`}>
-               {isAdmin ? (
-                 <NavLink to="/" icon={LayoutGrid} label="Home" />
-               ) : (
-                 <NavLink to="/orders" icon={ClipboardList} label="History" />
-               )}
+            <div className={`grid h-16 max-w-md mx-auto ${
+              isAdmin ? 'grid-cols-4' :
+              isManager ? 'grid-cols-1' :
+              isEmployee ? 'grid-cols-2' :
+              'grid-cols-1'
+            }`}>
+              {isAdmin && <NavLink to="/" icon={LayoutGrid} label="Home" />}
+              {isAdmin && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
+              {isAdmin && <NavLink to="/create-order" icon={Plus} label="New" />}
+              {isAdmin && <NavLink to="/profile" icon={Users} label="Users" />}
 
-               <NavLink to="/create-order" icon={Plus} label="New" />
+              {isManager && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
 
-               {isAdmin && (
-                 <NavLink to="/profile" icon={Users} label="Roles" />
-               )}
+              {isEmployee && <NavLink to="/orders" icon={ClipboardList} label="History" />}
+              {isEmployee && <NavLink to="/create-order" icon={Plus} label="New" />}
             </div>
           </nav>
         </div>

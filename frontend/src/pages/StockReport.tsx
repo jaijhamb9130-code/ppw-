@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getStockItems, syncStockItems } from '../api';
+import { getStockItems, syncStockItems, getUser } from '../api';
 import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw, Plus } from 'lucide-react';
 import ItemDetailsPage from '../components/ItemDetailsPage';
 
@@ -56,6 +56,7 @@ export default function StockReport() {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [isSyncing, setIsSyncing] = useState(false);
     const [showItemDetails, setShowItemDetails] = useState(false);
+    const isAdmin = (getUser()?.role === 'admin');
 
     const fetchData = useCallback(async (page: number, search: string) => {
         setLoading(true);
@@ -142,14 +143,16 @@ export default function StockReport() {
                         <span className="text-xs font-medium text-slate-500">
                             {pagination.total.toLocaleString()} Items
                         </span>
-                        <button
-                            onClick={handleSync}
-                            disabled={isSyncing}
-                            className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 disabled:opacity-50"
-                        >
-                            <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-                            {isSyncing ? 'Syncing...' : 'Sync Now'}
-                        </button>
+                        {isAdmin && (
+                            <button
+                                onClick={handleSync}
+                                disabled={isSyncing}
+                                className="flex items-center gap-2 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 disabled:opacity-50"
+                            >
+                                <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+                                {isSyncing ? 'Syncing...' : 'Sync Now'}
+                            </button>
+                        )}
                     </div>
                 </div>
                 {/* Search Bar - Dense */}
