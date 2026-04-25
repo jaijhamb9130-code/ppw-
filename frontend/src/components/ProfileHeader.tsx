@@ -28,10 +28,10 @@ export function ProfileHeader() {
   const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="fixed top-3 right-4 z-50" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen((v) => !v)}
-            className="flex items-center gap-2 p-1.5 rounded-full bg-white/90 backdrop-blur border border-slate-200 shadow-sm transition-all active:scale-95"
+            className="flex items-center gap-2 p-1.5 rounded-full bg-white border border-slate-200 shadow-sm transition-all active:scale-95"
           >
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-700">
               {initial}

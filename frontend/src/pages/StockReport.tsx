@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { getStockItems, syncStockItems, getUser } from '../api';
 import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw, Plus } from 'lucide-react';
 import ItemDetailsPage from '../components/ItemDetailsPage';
-import { ProfileHeader } from '../components/ProfileHeader';
 
 interface StockItem {
     masterid: string;
@@ -156,7 +155,6 @@ export default function StockReport() {
                                 {isSyncing ? 'Syncing...' : 'Sync Now'}
                             </button>
                         )}
-                        {isManager && <ProfileHeader />}
                     </div>
                 </div>
                 {/* Search Bar - Dense */}

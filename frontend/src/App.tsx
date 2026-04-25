@@ -16,6 +16,7 @@ import { getUser } from './api';
 import { ConfirmModal } from './components/ConfirmModal';
 import { InstallPWA } from './components/InstallPWA';
 import { canAccess, getDefaultRoute } from './utils';
+import { ProfileHeader } from './components/ProfileHeader';
 
 // Auth + role-aware guard. Logged-in users without permission for the path
 // are bounced to whichever default route their role allows.
@@ -132,6 +133,9 @@ function Layout() {
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-indigo-300/10 rounded-full blur-[120px]"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-pink-300/10 rounded-full blur-[100px]"></div>
         </div>
+
+        {/* Profile button — fixed top-right, only for staff users (manager/employee) on non-login pages */}
+        {isLoggedIn && !isAdmin && location.pathname !== '/login' && <ProfileHeader />}
 
         {/* Main Content Area */}
         <main className={`relative z-10 w-full h-full min-h-screen ${!hideNav ? 'pb-24' : ''}`}>
