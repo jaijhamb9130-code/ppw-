@@ -14,12 +14,20 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ItemDetailsService } from './item-details.service';
 
 function originOf(req: Request): string {
-  const proto =
-    (req.headers['x-forwarded-proto'] as string)?.split(',')[0]?.trim() ||
-    req.protocol;
   const host =
     (req.headers['x-forwarded-host'] as string)?.split(',')[0]?.trim() ||
-    req.get('host');
+    req.get('host') ||
+    '';
+  let proto =
+    (req.headers['x-forwarded-proto'] as string)?.split(',')[0]?.trim() ||
+    req.protocol;
+  const isPrivate =
+    /^localhost(:|$)/i.test(host) ||
+    /^127\./.test(host) ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+  if (proto === 'http' && !isPrivate) proto = 'https';
   return `${proto}://${host}`;
 }
 
