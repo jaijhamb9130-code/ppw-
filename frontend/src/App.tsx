@@ -11,15 +11,12 @@ import Login from './pages/Login';
 import AdminProfile from './pages/AdminProfile';
 import Godown from './pages/Godown';
 import AttachBarcode from './pages/AttachBarcode';
-import { Plus, Users, LayoutGrid, ClipboardList, Package } from 'lucide-react';
+import { Plus, Users, LayoutGrid, ClipboardList, Package, UserCircle, LogOut, Shield, X } from 'lucide-react';
 import { getUser } from './api';
 import { ConfirmModal } from './components/ConfirmModal';
 import { InstallPWA } from './components/InstallPWA';
 import { canAccess, getDefaultRoute } from './utils';
-import { ProfileHeader } from './components/ProfileHeader';
 
-// Auth + role-aware guard. Logged-in users without permission for the path
-// are bounced to whichever default route their role allows.
 function AuthGuard({ children, path }: { children: React.ReactElement; path?: string }) {
   const userStr = localStorage.getItem('user');
   if (!userStr) return <Navigate to="/login" replace />;
@@ -42,29 +39,116 @@ function NavLink({ to, icon: Icon, label }: { to: string; icon: React.ElementTyp
         ${isActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}
       `}
     >
-      <div className={`
-        relative transition-all duration-300
-        ${isActive ? '-translate-y-1' : ''}
-      `}>
+      <div className={`relative transition-all duration-300 ${isActive ? '-translate-y-1' : ''}`}>
         <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
         {isActive && (
           <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
         )}
       </div>
-      <span className={`text-[10px] font-bold tracking-wide transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-100'}`}>
-        {label}
-      </span>
+      <span className="text-[10px] font-bold tracking-wide">{label}</span>
     </Link>
+  );
+}
+
+function NavButton({ icon: Icon, label, onClick, isActive }: { icon: React.ElementType; label: string; onClick: () => void; isActive?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        relative flex flex-col items-center justify-center py-2 space-y-1 transition-all duration-300
+        ${isActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}
+      `}
+    >
+      <div className={`relative transition-all duration-300 ${isActive ? '-translate-y-1' : ''}`}>
+        <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+        {isActive && (
+          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"></span>
+        )}
+      </div>
+      <span className="text-[10px] font-bold tracking-wide">{label}</span>
+    </button>
+  );
+}
+
+function ProfileSheet({ onClose }: { onClose: () => void }) {
+  const user = getUser();
+  const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+      <div
+        className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl px-5 pt-4 pb-10 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle bar */}
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5" />
+
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+        >
+          <X size={18} />
+        </button>
+
+        {/* Avatar + name */}
+        <div className="flex items-center gap-4 mb-5">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-700 shrink-0">
+            {initial}
+          </div>
+          <div>
+            <p className="text-lg font-bold text-slate-800">{user.name || user.username}</p>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 mt-1">
+              <Shield size={10} />
+              {user.role || 'user'}
+            </span>
+          </div>
+        </div>
+
+        {/* Info rows */}
+        <div className="space-y-3 mb-6">
+          <div className="bg-slate-50 rounded-2xl px-4 py-3">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Username</p>
+            <p className="text-sm font-semibold text-slate-700">{user.username}</p>
+          </div>
+          {user.number && (
+            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Phone</p>
+              <p className="text-sm font-semibold text-slate-700">{user.number}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-50 text-red-500 font-bold rounded-2xl hover:bg-red-100 active:scale-95 transition-all"
+        >
+          <LogOut size={18} />
+          Logout
+        </button>
+      </div>
+    </div>
   );
 }
 
 function Layout() {
   const location = useLocation();
   const [showNapModal, setShowNapModal] = React.useState(false);
+  const [showProfile, setShowProfile] = React.useState(false);
 
-  // Close menu when location changes (unused now but safe to keep or remove if we had menu)
   React.useEffect(() => {
-    // setIsReportsOpen(false); // Removed
+    setShowProfile(false);
   }, [location]);
 
   const forceLogout = () => {
@@ -73,49 +157,35 @@ function Layout() {
     window.location.href = '/login';
   };
 
-  // Auto-Logout Trigger & Navigation Guard
   React.useEffect(() => {
     const checkTime = () => {
       const now = new Date();
       const hrs = now.getHours();
       const mins = now.getMinutes();
       const totalMins = hrs * 60 + mins;
-
-      // Logout Window: 11:45 PM (1425 mins) to 5:00 AM (300 mins)
-      // Logic: If past 11:45 PM OR before 5:00 AM
       const isNapTime = totalMins >= 1425 || totalMins <= 300;
 
       if (isNapTime) {
         const userStr = localStorage.getItem('user');
         if (userStr && window.location.pathname !== '/login') {
           const userData = JSON.parse(userStr);
-          // Allow Admin to bypass Nap Time if they are actively working
           if (userData.role === 'admin') return;
-
-          // If it's EXACTLY 11:45 PM, show the polite popup first
           if (hrs === 23 && mins === 45) {
             if (!showNapModal) setShowNapModal(true);
           } else {
-            // If it's anytime else in the window (e.g. 1:00 AM), force logout immediately
             forceLogout();
           }
         }
       }
     };
 
-    // Check on interval
-    const interval = setInterval(checkTime, 30000); // Check every 30s
-    
-    // Check on navigation (location change)
+    const interval = setInterval(checkTime, 30000);
     checkTime();
-
     return () => clearInterval(interval);
   }, [location, showNapModal]);
 
-  // Hide bottom nav on specific pages
   const hideNav = location.pathname === '/create-order' || location.pathname === '/login' || location.pathname.startsWith('/orders/edit/') || location.pathname === '/attach-barcode';
 
-  // Get User Role
   const user = getUser();
   const role = user?.role;
   const isAdmin = role === 'admin';
@@ -123,21 +193,15 @@ function Layout() {
   const isEmployee = role === 'employee';
   const isLoggedIn = !!user?.username;
 
-
   return (
     <div className="min-h-screen bg-slate-200 flex justify-center font-sans selection:bg-indigo-100">
       <div className="w-full max-w-md min-h-screen bg-slate-50 relative shadow-2xl overflow-x-hidden border-x border-slate-300">
-        
-        {/* Global Ambient Background */}
+
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-indigo-300/10 rounded-full blur-[120px]"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-pink-300/10 rounded-full blur-[100px]"></div>
         </div>
 
-        {/* Profile button — fixed top-right, only for staff users (manager/employee) on non-login pages */}
-        {isLoggedIn && !isAdmin && location.pathname !== '/login' && <ProfileHeader />}
-
-        {/* Main Content Area */}
         <main className={`relative z-10 w-full h-full min-h-screen ${!hideNav ? 'pb-24' : ''}`}>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -154,43 +218,44 @@ function Layout() {
           </Routes>
         </main>
 
-      {/* Bottom Navigation Bar — filtered by role */}
-      {!hideNav && isLoggedIn && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <nav className="bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-safe">
-            <div className={`grid h-16 max-w-md mx-auto ${
-              isAdmin ? 'grid-cols-4' :
-              isManager ? 'grid-cols-1' :
-              isEmployee ? 'grid-cols-2' :
-              'grid-cols-1'
-            }`}>
-              {isAdmin && <NavLink to="/" icon={LayoutGrid} label="Home" />}
-              {isAdmin && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
-              {isAdmin && <NavLink to="/create-order" icon={Plus} label="New" />}
-              {isAdmin && <NavLink to="/profile" icon={Users} label="Users" />}
+        {!hideNav && isLoggedIn && (
+          <div className="fixed bottom-0 left-0 right-0 z-50">
+            <nav className="bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-safe">
+              <div className={`grid h-16 max-w-md mx-auto ${
+                isAdmin    ? 'grid-cols-4' :
+                isManager  ? 'grid-cols-2' :
+                isEmployee ? 'grid-cols-3' :
+                'grid-cols-1'
+              }`}>
+                {isAdmin && <NavLink to="/" icon={LayoutGrid} label="Home" />}
+                {isAdmin && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
+                {isAdmin && <NavLink to="/create-order" icon={Plus} label="New" />}
+                {isAdmin && <NavLink to="/profile" icon={Users} label="Users" />}
 
-              {isManager && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
+                {isManager && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
+                {isManager && <NavButton icon={UserCircle} label="Profile" onClick={() => setShowProfile(true)} isActive={showProfile} />}
 
-              {isEmployee && <NavLink to="/orders" icon={ClipboardList} label="History" />}
-              {isEmployee && <NavLink to="/create-order" icon={Plus} label="New" />}
-            </div>
-          </nav>
-        </div>
-      )}
+                {isEmployee && <NavLink to="/orders" icon={ClipboardList} label="History" />}
+                {isEmployee && <NavLink to="/create-order" icon={Plus} label="New" />}
+                {isEmployee && <NavButton icon={UserCircle} label="Profile" onClick={() => setShowProfile(true)} isActive={showProfile} />}
+              </div>
+            </nav>
+          </div>
+        )}
 
-      {/* Nap Time Modal */}
-      <ConfirmModal 
-        isOpen={showNapModal}
-        onClose={() => setShowNapModal(false)}
-        onConfirm={forceLogout}
-        title="🌙 It's Nap Time!"
-        message="The system is undergoing scheduled maintenance (Tally Sync). Please take a rest and log in tomorrow morning. Sweet dreams!"
-        confirmText="Logout Now"
-        cancelText="Close"
-      />
+        {showProfile && <ProfileSheet onClose={() => setShowProfile(false)} />}
 
-      {/* PWA Install Prompt */}
-      <InstallPWA />
+        <ConfirmModal
+          isOpen={showNapModal}
+          onClose={() => setShowNapModal(false)}
+          onConfirm={forceLogout}
+          title="🌙 It's Nap Time!"
+          message="The system is undergoing scheduled maintenance (Tally Sync). Please take a rest and log in tomorrow morning. Sweet dreams!"
+          confirmText="Logout Now"
+          cancelText="Close"
+        />
+
+        <InstallPWA />
       </div>
     </div>
   );

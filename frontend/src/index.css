@@ -197,6 +197,19 @@ tbody tr:hover td {
   animation: fade-in 0.3s ease-out;
 }
 
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 @keyframes scan-line {
   0% { top: 0% }
   100% { top: 100% }

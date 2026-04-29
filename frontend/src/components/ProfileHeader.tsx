@@ -28,7 +28,7 @@ export function ProfileHeader() {
   const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
 
   return (
-    <div className="fixed top-3 right-4 z-50" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen((v) => !v)}
             className="flex items-center gap-2 p-1.5 rounded-full bg-white border border-slate-200 shadow-sm transition-all active:scale-95"

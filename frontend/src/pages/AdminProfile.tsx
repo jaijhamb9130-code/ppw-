@@ -40,8 +40,9 @@ export default function AdminProfile() {
             }
             resetForm();
             fetchUsers();
-        } catch (error) {
-            alert('Operation failed');
+        } catch (error: any) {
+            const msg = error?.response?.data?.message || 'Operation failed';
+            alert(msg);
             console.error(error);
         }
     };

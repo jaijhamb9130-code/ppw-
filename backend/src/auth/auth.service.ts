@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -62,7 +62,7 @@ export class AuthService {
     const existing = await this.usersRepository.findOne({
       where: { username: userDto.username },
     });
-    if (existing) throw new Error('User already exists');
+    if (existing) throw new ConflictException('Username already exists');
 
     // Hash password
     const salt = await bcrypt.genSalt();
@@ -73,6 +73,13 @@ export class AuthService {
       password: hashedPassword,
     });
 
-    return this.usersRepository.save(newUser);
+    try {
+      return await this.usersRepository.save(newUser);
+    } catch (err: any) {
+      if (err?.code === 'ER_DUP_ENTRY') {
+        throw new ConflictException('Username already exists');
+      }
+      throw err;
+    }
   }
 }
