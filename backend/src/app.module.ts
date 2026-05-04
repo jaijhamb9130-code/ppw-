@@ -20,6 +20,7 @@ import { GodownController } from './godown.controller';
 import { TallyService } from './tally.service';
 import { AuthModule } from './auth/auth.module';
 import { ItemDetailsModule } from './item-details/item-details.module';
+import { SchemaSyncService } from './schema-sync.service';
 @Module({
   imports: [
     AuthModule,
@@ -59,6 +60,6 @@ import { ItemDetailsModule } from './item-details/item-details.module';
     ]),
   ],
   controllers: [AppController, UserController, GodownController],
-  providers: [AppService, TallyService],
+  providers: [AppService, TallyService, SchemaSyncService],
 })
 export class AppModule {}
