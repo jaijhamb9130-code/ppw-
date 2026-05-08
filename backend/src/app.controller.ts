@@ -25,6 +25,8 @@ import { Order } from './entities/order.entity';
 import { OrderDetail } from './entities/order-detail.entity';
 import { Meta } from './entities/meta.entity';
 import { AuthGuard } from '@nestjs/passport';
+import { PermissionsGuard } from './auth/permissions.guard';
+import { RequirePermission } from './auth/permissions.decorator';
 
 @Controller()
 export class AppController {
@@ -59,6 +61,8 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('dashboard')
   @Get('dashboard/stats')
   async getDashboardStats() {
     const today = new Date();
@@ -155,6 +159,8 @@ export class AppController {
     return this.authService.register(body);
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('ledgers')
   async createLedger(@Body() body: any) {
     if (!body.name) throw new Error('Name is required');
@@ -205,6 +211,8 @@ export class AppController {
     return this.ledgerRepo.save(ledger);
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Patch('orders/:id/finalize')
   async finalizeOrder(@Param('id') id: string) {
     const orderId = parseInt(id);
@@ -225,6 +233,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Patch('orders/items/bulk-status')
   async updateBulkStatus(@Body() body: { itemIds: number[], status: 'approved' | 'rejected' }) {
     const { itemIds, status } = body;
@@ -235,6 +245,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Patch('orders/items/:id')
   async updateOrderItem(@Param('id') id: number, @Body() body: any) {
     const item = await this.orderDetailRepo.findOne({
@@ -265,6 +277,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Post('orders/online/sync')
   async syncCompletedOrders() {
     // Marks ALL 'completed' online orders as 'fetched'
@@ -275,6 +289,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Post('orders')
   async createOrder(@Body() body: any) {
     try {
@@ -479,11 +495,15 @@ export class AppController {
   }
 
   // Separate sync endpoints
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('sync/ledgers')
   async syncLedgers() {
     return this.tallyService.fetchAndSaveLedgers();
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('sync/stock-items')
   async syncStockItems() {
     return this.tallyService.fetchAndSaveStockItems();
@@ -514,6 +534,8 @@ export class AppController {
   }
 
   // Combined sync (legacy)
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('sync')
   async syncData() {
     try {
@@ -854,6 +876,8 @@ export class AppController {
   }
 
   // Orders with pagination
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('reports')
   @Get('reports/orders')
   async getOrders(
     @Query('page') page: string = '1',
@@ -1047,6 +1071,8 @@ export class AppController {
     return qb.getMany();
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Get('orders/:id/details')
   async getOrderDetails(@Param('id') id: number) {
     return this.orderDetailRepo.find({
@@ -1054,6 +1080,8 @@ export class AppController {
     });
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Get('orders/:id')
   async getOrderById(@Param('id') id: number) {
     return this.orderRepo.findOne({
@@ -1062,6 +1090,8 @@ export class AppController {
     });
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('reports')
   @Delete('orders/:id')
   async deleteOrder(@Param('id') id: string) {
     try {
@@ -1182,6 +1212,8 @@ export class AppController {
     }
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Post('orders/:id/sync')
   async syncOrderToTally(@Param('id') id: string) {
     try {
