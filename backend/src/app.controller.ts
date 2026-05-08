@@ -877,7 +877,9 @@ export class AppController {
 
   // Orders with pagination
   @UseGuards(AuthGuard('jwt'), PermissionsGuard)
-  @RequirePermission('reports')
+  // 'orders' OR 'reports' — Order Processing role needs the live order list
+  // to actually process orders; pure reporting users can also read it.
+  @RequirePermission('orders', 'reports')
   @Get('reports/orders')
   async getOrders(
     @Query('page') page: string = '1',
