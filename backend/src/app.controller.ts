@@ -1047,15 +1047,18 @@ export class AppController {
       throw new HttpException('phone must contain at least 10 digits', 400);
     }
 
+    // Alias is 'o' (not 'order') because 'order' is a MySQL reserved word
+    // and TypeORM's escape-handling for table aliases inside string-template
+    // .where() clauses is inconsistent across MySQL versions.
     const qb = this.orderRepo
-      .createQueryBuilder('order')
-      .leftJoinAndSelect('order.orderDetails', 'orderDetails')
-      .where('order.customer_phone = :exact OR order.customer_phone LIKE :like', {
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.orderDetails', 'd')
+      .where('o.customer_phone = :exact OR o.customer_phone LIKE :like', {
         exact: normalized,
         like: `%${normalized}`,
       })
-      .orderBy('order.date', 'DESC')
-      .addOrderBy('order.id', 'DESC');
+      .orderBy('o.date', 'DESC')
+      .addOrderBy('o.id', 'DESC');
 
     // Pagination is OPTIONAL — when no params are sent, return ALL orders
     // (no hardcoded cap). Cap at 1000 per page when paginating.

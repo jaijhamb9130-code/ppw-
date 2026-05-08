@@ -20,6 +20,49 @@ import { DataSource } from 'typeorm';
 // users are NEVER touched (they bypass PermissionsGuard anyway). Rows
 // admin explicitly set to '[]' are also left alone — that's a deliberate
 // "no permissions" choice we must respect.
+// Ensure all entity-defined columns exist in DB before the app starts serving.
+// SchemaSyncService is supposed to do this on bootstrap, but it runs AFTER
+// app.listen() so requests can race ahead. These explicit ALTERs guarantee
+// the columns are there by the time we listen. errno 1060 = "duplicate column"
+// (already exists) — silently skipped.
+async function ensureSchemaColumns(app: any) {
+  const ds = app.get(DataSource);
+  const adds: { table: string; col: string; def: string }[] = [
+    // PPW StockItem-only column (admin-customer dropped it from entity in
+    // commit 32b2a87 — keep adding it here so PPW's SELECT * never fails).
+    { table: 'stock_item', col: 'ats_barcode',     def: 'VARCHAR(255) NULL' },
+    // PPW StockItem extra fields some older DBs may not yet have:
+    { table: 'stock_item', col: 'group',           def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'category',        def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'last_purchase_cost', def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'is_active',       def: 'TINYINT(1) NOT NULL DEFAULT 1' },
+    { table: 'stock_item', col: 'expiry_date',     def: 'DATETIME NULL' },
+    // Order columns mirroring admin-customer's runMigrations (shared RDS):
+    { table: 'order', col: 'customer_email',   def: 'VARCHAR(255) NULL' },
+    { table: 'order', col: 'customer_gstin',   def: 'VARCHAR(255) NULL' },
+    { table: 'order', col: 'customer_pincode', def: 'VARCHAR(255) NULL' },
+    { table: 'order', col: 'customer_city',    def: 'VARCHAR(255) NULL' },
+    { table: 'order', col: 'customer_state',   def: 'VARCHAR(255) NULL' },
+    { table: 'order', col: 'amount_given',     def: 'DECIMAL(10,2) NULL' },
+  ];
+  for (const { table, col, def } of adds) {
+    try {
+      await ds.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${col}\` ${def}`);
+      console.log(`Migration: added column ${table}.${col}`);
+    } catch (e: any) {
+      if (e?.errno !== 1060) {
+        console.error(`Migration error for ${table}.${col}:`, e?.sqlMessage);
+      }
+    }
+  }
+}
+
+// One-time role-defaults backfill for users whose `permissions` is NULL
+// (never been set). Idempotent: only NULL rows are touched, so re-running
+// on every boot is a no-op once admins have curated their staff. Admin
+// users are NEVER touched (they bypass PermissionsGuard anyway). Rows
+// admin explicitly set to '[]' are also left alone — that's a deliberate
+// "no permissions" choice we must respect.
 async function backfillUserPermissions(app: any) {
   const ds = app.get(DataSource);
   const roleDefaults: Record<string, string[]> = {
@@ -47,6 +90,7 @@ async function backfillUserPermissions(app: any) {
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
+    await ensureSchemaColumns(app);
     await backfillUserPermissions(app);
     const expressInstance = app.getHttpAdapter().getInstance();
     expressInstance.set('trust proxy', 1);
