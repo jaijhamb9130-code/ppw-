@@ -964,19 +964,14 @@ export class AppController {
 
       // Final Scoping (Staff filtering or Privacy)
       if (draftsOnly !== 'true') {
+        // Role-specific user_id scoping (NOT date — date is hoisted below so
+        // it applies uniformly to admin/manager/employee/etc.).
         if (role === 'admin') {
-          // If explicit userId passed (clicked from dashboard)
           const filterId = parseInt(userId);
           if (!isNaN(filterId) && filterId > 0) {
             const condition = 'order.created_by = :userIdFilter';
             if (hasWhere) query.andWhere(condition, { userIdFilter: filterId });
             else { query.where(condition, { userIdFilter: filterId }); hasWhere = true; }
-          }
-          
-          if (date) {
-            const condition = 'order.date = :dateFilter';
-            if (hasWhere) query.andWhere(condition, { dateFilter: date });
-            else { query.where(condition, { dateFilter: date }); hasWhere = true; }
           }
         } else if (role === 'employee' && userId) {
           // Employees see ONLY their own
@@ -984,17 +979,25 @@ export class AppController {
           if (hasWhere) query.andWhere(condition, { userIdScoped: parseInt(userId) });
           else { query.where(condition, { userIdScoped: parseInt(userId) }); hasWhere = true; }
 
-          if (date) {
-            query.andWhere(
-              "(order.status != 'fetched' OR order.date = :dateScoped)",
-              { dateScoped: date },
-            );
-          } else if (range !== 'fy') {
+          // Without an explicit date or FY range, hide stale 'fetched' orders.
+          // (When a date IS provided, the hoisted date filter below already
+          // narrows the result set, so we don't need this default.)
+          if (!date && range !== 'fy') {
             query.andWhere(
               "(order.status != 'fetched' OR DATE(order.date) = CURDATE())",
             );
           }
         }
+      }
+
+      // Date filter — applies to ALL roles uniformly (admin/manager/employee/etc.).
+      // Previously the date param was honoured only inside the admin and
+      // employee branches, so managers (and any other role) silently ignored
+      // ?date=YYYY-MM-DD and got every order back.
+      if (date) {
+        const condition = 'order.date = :dateFilter';
+        if (hasWhere) query.andWhere(condition, { dateFilter: date });
+        else { query.where(condition, { dateFilter: date }); hasWhere = true; }
       }
 
       // Secondary filters
