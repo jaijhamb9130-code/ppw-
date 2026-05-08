@@ -650,11 +650,21 @@ export class AppController {
   async getStockItemById(@Param('id') id: string) {
     try {
       const item = await this.stockRepo.findOne({ where: { id: parseInt(id) } });
-      if (!item) throw new Error('Stock item not found');
+      if (!item) throw new HttpException('Stock item not found', 404);
       return item;
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
       console.error('Error in getStockItemById:', error);
-      throw error;
+      // TEMP-DIAG: surface SQL error so we can see why this 500s in prod.
+      throw new HttpException(
+        {
+          message: error?.message || 'unknown',
+          sqlMessage: error?.sqlMessage,
+          code: error?.code,
+          name: error?.name,
+        },
+        500,
+      );
     }
   }
 
@@ -740,7 +750,9 @@ export class AppController {
         .skip(skip)
         .take(limitNum)
         .getManyAndCount();
-
+      // TEMP-DIAG: log the generated SQL when stock-items 500s in prod
+      // (no-op in normal flow). Remove once root cause is identified.
+      void data; void total;
       return {
         data,
         pagination: {
@@ -750,9 +762,18 @@ export class AppController {
           totalPages: Math.ceil(total / limitNum),
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in getStockItems:', error);
-      throw error;
+      // TEMP-DIAG: surface SQL error so we can see why this 500s in prod.
+      throw new HttpException(
+        {
+          message: error?.message || 'unknown',
+          sqlMessage: error?.sqlMessage,
+          code: error?.code,
+          name: error?.name,
+        },
+        500,
+      );
     }
   }
 
@@ -1047,31 +1068,40 @@ export class AppController {
       throw new HttpException('phone must contain at least 10 digits', 400);
     }
 
-    // Alias is 'o' (not 'order') because 'order' is a MySQL reserved word
-    // and TypeORM's escape-handling for table aliases inside string-template
-    // .where() clauses is inconsistent across MySQL versions.
-    const qb = this.orderRepo
-      .createQueryBuilder('o')
-      .leftJoinAndSelect('o.orderDetails', 'd')
-      .where('o.customer_phone = :exact OR o.customer_phone LIKE :like', {
-        exact: normalized,
-        like: `%${normalized}`,
-      })
-      .orderBy('o.date', 'DESC')
-      .addOrderBy('o.id', 'DESC');
+    try {
+      const qb = this.orderRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.orderDetails', 'd')
+        .where('o.customer_phone = :exact OR o.customer_phone LIKE :like', {
+          exact: normalized,
+          like: `%${normalized}`,
+        })
+        .orderBy('o.date', 'DESC')
+        .addOrderBy('o.id', 'DESC');
 
-    // Pagination is OPTIONAL — when no params are sent, return ALL orders
-    // (no hardcoded cap). Cap at 1000 per page when paginating.
-    if (limitStr != null) {
-      const limit = Math.max(1, Math.min(1000, parseInt(limitStr, 10) || 0));
-      qb.take(limit);
-    }
-    if (offsetStr != null) {
-      const offset = Math.max(0, parseInt(offsetStr, 10) || 0);
-      qb.skip(offset);
-    }
+      if (limitStr != null) {
+        const limit = Math.max(1, Math.min(1000, parseInt(limitStr, 10) || 0));
+        qb.take(limit);
+      }
+      if (offsetStr != null) {
+        const offset = Math.max(0, parseInt(offsetStr, 10) || 0);
+        qb.skip(offset);
+      }
 
-    return qb.getMany();
+      return await qb.getMany();
+    } catch (error: any) {
+      console.error('Error in getOrdersByCustomerPhone:', error);
+      // TEMP-DIAG: surface SQL error so we can see why this 500s in prod.
+      throw new HttpException(
+        {
+          message: error?.message || 'unknown',
+          sqlMessage: error?.sqlMessage,
+          code: error?.code,
+          name: error?.name,
+        },
+        500,
+      );
+    }
   }
 
   @UseGuards(AuthGuard('jwt'), PermissionsGuard)
