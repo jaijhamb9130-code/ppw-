@@ -41,9 +41,12 @@ import { SchemaSyncService } from './schema-sync.service';
         port: configService.get<number>('DB_PORT', 3306),
         username: configService.get<string>('DB_USERNAME', 'root'),
         password: configService.get<string>('DB_PASSWORD', ''),
-        database: configService.get<string>('DB_NAME', 'tally_sync'),
+        database: configService.get<string>('DB_NAME', 'ppw_db'),
         entities: [Ledger, StockItem, Order, OrderDetail, User, GodownEntry, Meta, ItemDetail, ItemMedia],
-        synchronize: true, // Auto-create/sync tables to fix schema mismatches from imported data
+        // synchronize is OFF in code path — SchemaSyncService is the sole schema authority
+        // and applies ONLY additive changes (CREATE TABLE / ADD COLUMN / CREATE INDEX),
+        // protecting any DB shared with admin-customer from destructive ALTERs.
+        synchronize: false,
       }),
       inject: [ConfigService],
     }),
