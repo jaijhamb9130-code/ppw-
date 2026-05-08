@@ -655,16 +655,7 @@ export class AppController {
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
       console.error('Error in getStockItemById:', error);
-      // TEMP-DIAG: surface SQL error so we can see why this 500s in prod.
-      throw new HttpException(
-        {
-          message: error?.message || 'unknown',
-          sqlMessage: error?.sqlMessage,
-          code: error?.code,
-          name: error?.name,
-        },
-        500,
-      );
+      throw new HttpException('Failed to fetch stock item', 500);
     }
   }
 
@@ -750,9 +741,6 @@ export class AppController {
         .skip(skip)
         .take(limitNum)
         .getManyAndCount();
-      // TEMP-DIAG: log the generated SQL when stock-items 500s in prod
-      // (no-op in normal flow). Remove once root cause is identified.
-      void data; void total;
       return {
         data,
         pagination: {
@@ -764,16 +752,7 @@ export class AppController {
       };
     } catch (error: any) {
       console.error('Error in getStockItems:', error);
-      // TEMP-DIAG: surface SQL error so we can see why this 500s in prod.
-      throw new HttpException(
-        {
-          message: error?.message || 'unknown',
-          sqlMessage: error?.sqlMessage,
-          code: error?.code,
-          name: error?.name,
-        },
-        500,
-      );
+      throw new HttpException('Failed to fetch stock items', 500);
     }
   }
 
@@ -1091,16 +1070,7 @@ export class AppController {
       return await qb.getMany();
     } catch (error: any) {
       console.error('Error in getOrdersByCustomerPhone:', error);
-      // TEMP-DIAG: surface SQL error so we can see why this 500s in prod.
-      throw new HttpException(
-        {
-          message: error?.message || 'unknown',
-          sqlMessage: error?.sqlMessage,
-          code: error?.code,
-          name: error?.name,
-        },
-        500,
-      );
+      throw new HttpException('Failed to fetch customer orders', 500);
     }
   }
 
