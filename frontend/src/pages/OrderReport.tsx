@@ -223,19 +223,23 @@ export default function OrderReport() {
                             >
                                 Today
                             </button>
-                            <div className="flex items-center flex-1 min-w-0 pr-1">
+                            <label className="flex items-center flex-1 min-w-0 pr-1 gap-1.5 cursor-pointer relative overflow-hidden">
+                                <Calendar size={14} className="flex-shrink-0 text-amber-700/70" />
                                 <input
                                     type="date"
-                                    className="bg-transparent text-[11px] font-bold text-slate-700 outline-none w-full"
+                                    className="bg-transparent text-[12px] font-bold text-slate-700 outline-none w-full cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                                     value={selectedDate}
                                     onChange={(e) => updateDate(e.target.value)}
                                 />
                                 {selectedDate && (
-                                    <button onClick={() => updateDate('')} className="ml-1 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full">
+                                    <button
+                                        onClick={(e) => { e.preventDefault(); updateDate(''); }}
+                                        className="ml-1 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full flex-shrink-0 relative z-10"
+                                    >
                                         <X size={12} />
                                     </button>
                                 )}
-                            </div>
+                            </label>
                         </div>
                     )}
 
