@@ -167,6 +167,7 @@ export default function AdminProfile() {
 
             {/* Add/Edit User Modal */}
             {showAddModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
                         <button
                             onClick={resetForm}
