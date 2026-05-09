@@ -195,7 +195,7 @@ function Layout() {
     return () => clearInterval(interval);
   }, [location, showNapModal]);
 
-  const hideNav = location.pathname === '/create-order' || location.pathname === '/login' || location.pathname.startsWith('/orders/edit/') || location.pathname === '/attach-barcode';
+  const hideNav = location.pathname === '/login' || location.pathname === '/attach-barcode';
 
   const user = getUser();
   const role = user?.role;
