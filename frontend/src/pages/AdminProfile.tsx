@@ -177,37 +177,38 @@ export default function AdminProfile() {
                         </button>
 
                         <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
-                            <div className="mb-4">
-                                <h3 className="text-xl font-black text-slate-800 tracking-tight">{editingUserId ? 'Edit Staff' : 'Add New Staff'}</h3>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{editingUserId ? 'Update employee details' : 'Create new employee login'}</p>
+                            <div className="mb-2">
+                                <h3 className="text-lg font-black text-slate-800 tracking-tight">{editingUserId ? 'Edit Staff' : 'Add New Staff'}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{editingUserId ? 'Update employee details' : 'Create new employee login'}</p>
                             </div>
 
-                            <div className="space-y-3">
-                                <div className="space-y-0.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Username</label>
-                                    <input
-                                        value={newUser.username}
-                                        onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
-                                        disabled={!!editingUserId}
-                                    />
+                            <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Username</label>
+                                        <input
+                                            value={newUser.username}
+                                            onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-bold"
+                                            disabled={!!editingUserId}
+                                        />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Password</label>
+                                        <input
+                                            value={newUser.password || ''}
+                                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                                            placeholder={editingUserId ? "Leave empty" : ""}
+                                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-bold"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-0.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Password</label>
-                                    <input
-                                        value={newUser.password || ''}
-                                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                                        placeholder={editingUserId ? "Leave empty" : ""}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
-                                    />
-                                </div>
-                            </div>
                             <div className="space-y-0.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Full Name</label>
                                 <input
                                     value={newUser.name}
                                     onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
+                                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-bold"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
@@ -216,7 +217,7 @@ export default function AdminProfile() {
                                     <input
                                         value={newUser.number}
                                         onChange={(e) => setNewUser({ ...newUser, number: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
+                                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-bold"
                                     />
                                 </div>
                                 <div className="space-y-0.5">
@@ -231,7 +232,7 @@ export default function AdminProfile() {
                                                 system_perms: role === 'manager' ? ['inventory'] : []
                                             });
                                         }}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 appearance-none text-sm font-bold"
+                                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 appearance-none text-xs font-bold"
                                     >
                                         <option value="employee">Employee</option>
                                         <option value="manager">Manager</option>
@@ -242,7 +243,7 @@ export default function AdminProfile() {
 
                             {/* Permissions Section - Only for non-admins */}
                             {newUser.role !== 'admin' && (
-                                <div className="space-y-6 pt-5 border-t border-slate-100">
+                                <div className="space-y-4 pt-3 border-t border-slate-100">
                                     {/* 1. System Pages Access */}
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
@@ -269,21 +270,21 @@ export default function AdminProfile() {
                                                         const next = current.includes(p.id) ? current.filter((x: string) => x !== p.id) : [...current, p.id];
                                                         setNewUser({ ...newUser, system_perms: next });
                                                     }}
-                                                    className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all text-left flex items-center justify-between ${
+                                                    className={`px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all text-left flex items-center justify-between ${
                                                         newUser.system_perms.includes(p.id) 
                                                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100' 
                                                         : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                                                     }`}
                                                 >
                                                     {p.label}
-                                                    {newUser.system_perms.includes(p.id) && <Check size={10} strokeWidth={4} />}
+                                                    {newUser.system_perms.includes(p.id) && <Check size={8} strokeWidth={5} />}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
 
                                     {/* 2. Data Restrictions */}
-                                    <div className="space-y-3 pt-4 border-t border-slate-100">
+                                    <div className="space-y-2 pt-3 border-t border-slate-100">
                                         <div className="flex items-center gap-2">
                                             <Tag size={16} className="text-violet-600" />
                                             <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Data Restrictions</h4>
