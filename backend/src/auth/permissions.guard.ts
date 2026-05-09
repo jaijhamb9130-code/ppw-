@@ -7,9 +7,6 @@ export class PermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    // Decorator value can be either a single permission string OR an array
-    // (any-of semantics). Backward compatible — old @RequirePermission('x')
-    // calls still work, new @RequirePermission('a','b') accepts EITHER.
     const required = this.reflector.getAllAndOverride<string | string[]>(PERMISSIONS_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -21,14 +18,37 @@ export class PermissionsGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
 
+    if (!user) return false;
+
     // Admins have all permissions automatically
-    if (user && user.role === 'admin') {
+    if (user.role === 'admin') {
       return true;
     }
 
-    const userPerms: string[] = user?.permissions || [];
+    // Role-based default system permissions
+    // This ensures staff can still access basic pages even if their 'permissions' 
+    // column is primarily used for data-level (brand/category) restrictions.
+    const roleDefaults: Record<string, string[]> = {
+      manager: ['dashboard', 'inventory', 'orders', 'ledgers', 'staff', 'sync'],
+      employee: ['inventory', 'orders', 'ledgers', 'sync'],
+      user: ['inventory', 'orders'],
+    };
+
+    const defaultPerms = roleDefaults[user.role] || [];
+
+    // Support both old format (array of strings) and new format (object with system key)
+    let explicitPerms: string[] = [];
+    if (Array.isArray(user.permissions)) {
+      explicitPerms = user.permissions;
+    } else if (user.permissions && Array.isArray(user.permissions.system)) {
+      explicitPerms = user.permissions.system;
+    }
+
+    const allUserPerms = [...new Set([...defaultPerms, ...explicitPerms])];
+
     const requiredList = Array.isArray(required) ? required : [required];
-    const hasAny = requiredList.some((p) => userPerms.includes(p));
+    const hasAny = requiredList.some((p) => allUserPerms.includes(p));
+
     if (!hasAny) {
       throw new ForbiddenException(
         `Insufficient permission. Need one of: ${requiredList.join(', ')}`,
