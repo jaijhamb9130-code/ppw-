@@ -675,27 +675,31 @@ export class AppController {
       const skip = (pageNum - 1) * limitNum;
 
       const query = this.stockRepo.createQueryBuilder('stock');
-      query.where('stock.is_active = true');
+      query.where('(stock.is_active = true OR stock.is_active IS NULL)');
 
       if (parent) {
         const parents = parent.split(',').map(p => p.trim()).filter(Boolean);
-        if (parents.length === 1) {
-          query.andWhere('stock.parent = :parent', { parent: parents[0] });
-        } else {
-          query.andWhere('stock.parent IN (:...parents)', { parents });
+        if (parents.length > 0) {
+          if (parents.length === 1) {
+            query.andWhere('stock.parent LIKE :parent', { parent: `%${parents[0]}%` });
+          } else {
+            query.andWhere('stock.parent IN (:...parents)', { parents });
+          }
         }
       }
 
       if (group) {
-        query.andWhere('stock.group = :group', { group });
+        query.andWhere('stock.group LIKE :group', { group: `%${group}%` });
       }
 
       if (category) {
         const cats = category.split(',').map(c => c.trim()).filter(Boolean);
-        if (cats.length === 1) {
-          query.andWhere('stock.category = :category', { category: cats[0] });
-        } else {
-          query.andWhere('stock.category IN (:...cats)', { cats });
+        if (cats.length > 0) {
+          if (cats.length === 1) {
+            query.andWhere('stock.category LIKE :category', { category: `%${cats[0]}%` });
+          } else {
+            query.andWhere('stock.category IN (:...cats)', { cats });
+          }
         }
       }
 
