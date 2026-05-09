@@ -716,7 +716,6 @@ export class AppController {
           };
 
           const cleanName = this.cleanSql('stock.name');
-          const cleanParent = this.cleanSql('stock.parent');
           const cleanBarcode = this.cleanSql('stock.ats_barcode');
           const cleanMasterId = this.cleanSql('stock.masterid');
 
@@ -724,11 +723,9 @@ export class AppController {
             `(stock.name LIKE :${tKey} 
               OR stock.masterid LIKE :${tKey} 
               OR stock.ats_barcode LIKE :${tKey} 
-              OR stock.parent LIKE :${tKey}
               OR stock.group LIKE :${tKey}
               OR stock.category LIKE :${tKey}
               OR ${cleanName} LIKE :${ctKey}
-              OR ${cleanParent} LIKE :${ctKey}
               OR ${cleanBarcode} LIKE :${ctKey}
               OR ${cleanMasterId} LIKE :${ctKey}
              )`,
