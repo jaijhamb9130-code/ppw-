@@ -30,26 +30,48 @@ async function ensureSchemaColumns(app: any) {
   const adds: { table: string; col: string; def: string }[] = [
     // PPW StockItem-only column (admin-customer dropped it from entity in
     // commit 32b2a87 — keep adding it here so PPW's SELECT * never fails).
+    // PPW StockItem columns
     { table: 'stock_item', col: 'ats_barcode',     def: 'VARCHAR(255) NULL' },
-    // PPW StockItem extra fields some older DBs may not yet have:
     { table: 'stock_item', col: 'group',           def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'category',        def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'last_purchase_cost', def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'is_active',       def: 'TINYINT(1) NOT NULL DEFAULT 1' },
     { table: 'stock_item', col: 'expiry_date',     def: 'DATETIME NULL' },
-    // StockItem rate columns missing from previous migrations
     { table: 'stock_item', col: 'rate_one_2',      def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'rate_one_3',      def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'rate_one_4',      def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'rate_one_4a',     def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'rate_one_5',      def: 'VARCHAR(255) NULL' },
-    // Order columns mirroring admin-customer's runMigrations (shared RDS):
+    { table: 'stock_item', col: 'hsn',             def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'gst',             def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'default_mrp',     def: 'VARCHAR(255) NULL' },
+
+    // Order columns
     { table: 'order', col: 'customer_email',   def: 'VARCHAR(255) NULL' },
     { table: 'order', col: 'customer_gstin',   def: 'VARCHAR(255) NULL' },
     { table: 'order', col: 'customer_pincode', def: 'VARCHAR(255) NULL' },
     { table: 'order', col: 'customer_city',    def: 'VARCHAR(255) NULL' },
     { table: 'order', col: 'customer_state',   def: 'VARCHAR(255) NULL' },
     { table: 'order', col: 'amount_given',     def: 'DECIMAL(10,2) NULL' },
+    { table: 'order', col: 'processed_at',     def: 'TIMESTAMP NULL' },
+    { table: 'order', col: 'processed_by',     def: 'INT NULL' },
+
+    // Ledger columns
+    { table: 'ledger', col: 'address',         def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'person_name',     def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'phone_number',    def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'email',           def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'gstin',           def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'pincode',         def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'state',           def: 'VARCHAR(255) NULL' },
+    { table: 'ledger', col: 'tally_guid',      def: 'VARCHAR(255) NULL' },
+
+    // Order Detail columns
+    { table: 'order_detail', col: 'selected_scheme', def: 'VARCHAR(255) NULL' },
+    { table: 'order_detail', col: 'livestock_type',  def: 'VARCHAR(255) NULL' },
+    { table: 'order_detail', col: 'parent',          def: 'VARCHAR(255) NULL' },
+    { table: 'order_detail', col: 'group',           def: 'VARCHAR(255) NULL' },
+    { table: 'order_detail', col: 'category',        def: 'VARCHAR(255) NULL' },
   ];
   for (const { table, col, def } of adds) {
     try {
