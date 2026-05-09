@@ -156,17 +156,39 @@ export default function OrderReport() {
         }
     };
 
+    const user = getUser();
+    const isManager = user?.role === 'manager' || user?.permissions?.includes('inventory') || user?.permissions?.includes('reports');
+    const hasFilterAccess = isAdmin || isManager;
+
+    const getHeaderText = () => {
+        if (userId && userName) return `${userName}'s Orders`;
+        if (searchParams.get('range') === 'fy') return 'FY Report';
+        if (selectedDate) {
+            const dateObj = new Date(selectedDate);
+            return `Day Book - ${dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+        }
+        return 'Day Book';
+    };
+
     return (
-        <div className="flex flex-col h-full bg-slate-50 min-h-screen pb-20">
-            {/* Refined Header */}
-            <div className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-20 shadow-sm space-y-3">
-                {/* Row 1: Logo and Logout */}
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
-                            <img src="/ppw-logo.png" alt="Logo" className="w-5 h-5 object-contain" />
-                        </div>
-                        <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Day Book</h1>
+        <div className="flex flex-col h-full min-h-screen pb-20" style={{ background: cream }}>
+            {/* Header */}
+            <div
+                className="px-4 py-2.5 sticky top-0 z-20 space-y-2.5"
+                style={{
+                    background: 'rgba(253,248,243,0.97)',
+                    backdropFilter: 'blur(12px)',
+                    borderBottom: '1px solid rgba(184,128,74,0.15)',
+                    boxShadow: '0 2px 12px rgba(184,128,74,0.06)',
+                }}
+            >
+                {/* Row 1: Logo + Title + Logout */}
+                <div className="flex justify-between items-center gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <img src="/ppw-logo.png" alt="Logo" className="w-8 h-8 object-contain flex-shrink-0" />
+                        <h1 className="text-lg font-extrabold tracking-tight truncate" style={{ color: '#2c1e0f' }}>
+                            {getHeaderText()}
+                        </h1>
                     </div>
                     <button
                         onClick={() => {
@@ -176,18 +198,23 @@ export default function OrderReport() {
                                 window.location.href = '/login';
                             }
                         }}
-                        className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all border border-red-100/50 shadow-sm active:scale-90"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl transition-all active:scale-90 flex-shrink-0"
+                        style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', color: '#ef4444' }}
                     >
                         <LogOut size={18} />
                     </button>
                 </div>
 
-                {/* Row 2: Filter + Date Selector and Order Count */}
+                {/* Row 2: Filter + Date + Count */}
                 <div className="flex items-center gap-2">
-                    {/* Status Filter Dropdown */}
                     <div className="relative flex-shrink-0">
-                        <select 
-                            className="appearance-none bg-orange-50/50 border border-orange-100 text-orange-700 text-[11px] font-black pl-3 pr-8 py-2 rounded-xl outline-none focus:ring-2 focus:ring-orange-100 transition-all uppercase tracking-tight shadow-sm"
+                        <select
+                            className="appearance-none text-[11px] font-black pl-3 pr-8 py-2 rounded-xl outline-none uppercase tracking-tight"
+                            style={{
+                                background: 'rgba(184,128,74,0.08)',
+                                border: '1px solid rgba(184,128,74,0.2)',
+                                color: copper,
+                            }}
                             value={JSON.stringify(activeFilter)}
                             onChange={(e) => {
                                 try {
@@ -204,14 +231,17 @@ export default function OrderReport() {
                                 </option>
                             ))}
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-orange-400">
-                             <ChevronDown size={14} />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: copper }}>
+                            <ChevronDown size={14} />
                         </div>
                     </div>
 
-                    {isAdmin && (
-                        <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-1.5 gap-2 shadow-sm flex-1 min-w-0">
-                            <button 
+                    {hasFilterAccess && (
+                        <div
+                            className="flex items-center rounded-xl px-2 py-1.5 gap-2 flex-1 min-w-0"
+                            style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(184,128,74,0.15)' }}
+                        >
+                            <button
                                 onClick={() => {
                                     const d = new Date();
                                     const istOffset = 5.5 * 60 * 60 * 1000;
@@ -219,22 +249,25 @@ export default function OrderReport() {
                                     const today = `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
                                     updateDate(today);
                                 }}
-                                className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 hover:bg-amber-100 transition-colors uppercase flex-shrink-0 shadow-sm"
+                                className="text-[10px] font-black px-2 py-1 rounded-lg uppercase flex-shrink-0 transition-colors"
+                                style={{ color: copper, background: 'rgba(184,128,74,0.1)', border: '1px solid rgba(184,128,74,0.2)' }}
                             >
                                 Today
                             </button>
                             <label className="flex items-center flex-1 min-w-0 pr-1 gap-1.5 cursor-pointer relative overflow-hidden">
-                                <Calendar size={14} className="flex-shrink-0 text-amber-700/70" />
+                                <Calendar size={14} style={{ color: '#8d5838', opacity: 0.8 }} className="flex-shrink-0" />
                                 <input
                                     type="date"
-                                    className="bg-transparent text-[12px] font-bold text-slate-700 outline-none w-full cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                    className="bg-transparent text-[12px] font-bold outline-none w-full cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                    style={{ color: '#2c1e0f' }}
                                     value={selectedDate}
                                     onChange={(e) => updateDate(e.target.value)}
                                 />
                                 {selectedDate && (
                                     <button
                                         onClick={(e) => { e.preventDefault(); updateDate(''); }}
-                                        className="ml-1 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full flex-shrink-0 relative z-10"
+                                        className="ml-1 p-1 rounded-full transition-colors flex-shrink-0 relative z-10"
+                                        style={{ color: '#a8a29e' }}
                                     >
                                         <X size={12} />
                                     </button>

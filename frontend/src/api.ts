@@ -130,7 +130,8 @@ export const getOrders = async (page = 1, limit = 50, search = '', orderType = '
             page,
             limit,
             search,
-            user_id: userIdOverride || (user.role === 'admin' ? undefined : user.id),
+            // Scoping: Admin and Manager see all orders by default. Employee only sees their own.
+            user_id: userIdOverride || (['admin', 'manager'].includes(user.role) ? undefined : user.id),
             role: user.role,
             show_all: 'true',
             order_type: orderType || undefined,

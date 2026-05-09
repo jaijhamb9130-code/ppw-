@@ -37,6 +37,12 @@ async function ensureSchemaColumns(app: any) {
     { table: 'stock_item', col: 'last_purchase_cost', def: 'VARCHAR(255) NULL' },
     { table: 'stock_item', col: 'is_active',       def: 'TINYINT(1) NOT NULL DEFAULT 1' },
     { table: 'stock_item', col: 'expiry_date',     def: 'DATETIME NULL' },
+    // StockItem rate columns missing from previous migrations
+    { table: 'stock_item', col: 'rate_one_2',      def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'rate_one_3',      def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'rate_one_4',      def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'rate_one_4a',     def: 'VARCHAR(255) NULL' },
+    { table: 'stock_item', col: 'rate_one_5',      def: 'VARCHAR(255) NULL' },
     // Order columns mirroring admin-customer's runMigrations (shared RDS):
     { table: 'order', col: 'customer_email',   def: 'VARCHAR(255) NULL' },
     { table: 'order', col: 'customer_gstin',   def: 'VARCHAR(255) NULL' },

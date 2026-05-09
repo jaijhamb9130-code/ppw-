@@ -966,13 +966,15 @@ export class AppController {
       if (draftsOnly !== 'true') {
         // Role-specific user_id scoping (NOT date — date is hoisted below so
         // it applies uniformly to admin/manager/employee/etc.).
-        if (role === 'admin') {
-          const filterId = parseInt(userId);
-          if (!isNaN(filterId) && filterId > 0) {
+        if (role === 'admin' || role === 'manager') {
+          if (userId) {
+            // Admin/Manager can filter by staff if userId is provided
+            const filterId = parseInt(userId as string);
             const condition = 'order.created_by = :userIdFilter';
             if (hasWhere) query.andWhere(condition, { userIdFilter: filterId });
             else { query.where(condition, { userIdFilter: filterId }); hasWhere = true; }
           }
+          // Else: Admin/Manager sees ALL orders (no filter added)
         } else if (role === 'employee' && userId) {
           // Employees see ONLY their own
           const condition = 'order.created_by = :userIdScoped';
