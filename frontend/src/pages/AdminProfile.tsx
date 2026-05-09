@@ -26,7 +26,7 @@ export default function AdminProfile() {
     };
 
     const resetForm = () => {
-        setNewUser({ username: '', password: '', name: '', number: '', role: 'employee' });
+        setNewUser({ username: '', password: '', name: '', number: '', role: 'employee', system_perms: [] });
         setAllowedParents([]);
         setAllowedCategories([]);
         setEditingUserId(null);
@@ -42,6 +42,7 @@ export default function AdminProfile() {
                 payload.permissions = {
                     allowedParents: allowed_parents,
                     allowedCategories: allowed_categories,
+                    system: newUser.system_perms,
                 };
             }
 
@@ -69,7 +70,8 @@ export default function AdminProfile() {
             password: '',
             name: user.name || '',
             number: user.number || '',
-            role: user.role
+            role: user.role,
+            system_perms: user.permissions?.system || []
         });
 
         // Load permissions
@@ -179,7 +181,7 @@ export default function AdminProfile() {
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-400 uppercase">Password</label>
                                     <input
-                                        value={newUser.password}
+                                        value={newUser.password || ''}
                                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                                         placeholder={editingUserId ? "Leave empty to keep" : ""}
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500"
@@ -207,7 +209,14 @@ export default function AdminProfile() {
                                     <label className="text-xs font-bold text-slate-400 uppercase">Role</label>
                                     <select
                                         value={newUser.role}
-                                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                                        onChange={(e) => {
+                                            const role = e.target.value;
+                                            setNewUser({ 
+                                                ...newUser, 
+                                                role,
+                                                system_perms: role === 'manager' ? ['inventory'] : []
+                                            });
+                                        }}
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 appearance-none"
                                     >
                                         <option value="employee">Employee</option>
@@ -219,32 +228,66 @@ export default function AdminProfile() {
 
                             {/* Permissions - Only for non-admins */}
                             {newUser.role !== 'admin' && (
-                                <div className="space-y-4 pt-2 border-t border-slate-100">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <ShieldCheck size={18} className="text-indigo-500" />
-                                        <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">Staff Data Restrictions</h4>
+                                <div className="space-y-4 pt-4 border-t border-slate-100">
+                                    <div className="space-y-3">
+                                        <label className="text-xs font-bold text-slate-400 uppercase">System Pages Access</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { id: 'dashboard', label: 'Dashboard' },
+                                                { id: 'inventory', label: 'Inventory' },
+                                                { id: 'orders', label: 'Orders List' },
+                                                { id: 'staff', label: 'Roles/Staff' },
+                                                { id: 'ledgers', label: 'Ledgers' },
+                                                { id: 'sync', label: 'Sync Tally' }
+                                            ].map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = newUser.system_perms;
+                                                        const next = current.includes(p.id) ? current.filter(x => x !== p.id) : [...current, p.id];
+                                                        setNewUser({ ...newUser, system_perms: next });
+                                                    }}
+                                                    className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all text-left flex items-center justify-between ${
+                                                        newUser.system_perms.includes(p.id) 
+                                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100' 
+                                                        : 'bg-slate-50 border-slate-200 text-slate-500'
+                                                    }`}
+                                                >
+                                                    {p.label}
+                                                    {newUser.system_perms.includes(p.id) && <Check size={12} strokeWidth={4} />}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-400 leading-tight">
-                                        RESTRICT this staff to specific Brands or Categories. If NONE are selected, they will have FULL ACCESS.
-                                    </p>
 
-                                    {/* Perm Picker for Parents (Brands) */}
-                                    <PermPicker
-                                        label="Allowed Brands (Parents)"
-                                        icon={<Box size={14} />}
-                                        selectedItems={allowed_parents}
-                                        fetchItems={getStockParents}
-                                        onToggle={(item) => togglePermItem(item, allowed_parents, setAllowedParents)}
-                                    />
+                                    <div className="space-y-4 pt-2 border-t border-slate-100">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <ShieldCheck size={18} className="text-indigo-500" />
+                                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">Staff Data Restrictions</h4>
+                                        </div>
+                                        <p className="text-[10px] font-bold text-slate-400 leading-tight">
+                                            RESTRICT this staff to specific Brands or Categories. If NONE are selected, they will have FULL ACCESS.
+                                        </p>
 
-                                    {/* Perm Picker for Categories */}
-                                    <PermPicker
-                                        label="Allowed Categories"
-                                        icon={<Tag size={14} />}
-                                        selectedItems={allowed_categories}
-                                        fetchItems={getStockCategories}
-                                        onToggle={(item) => togglePermItem(item, allowed_categories, setAllowedCategories)}
-                                    />
+                                        {/* Perm Picker for Parents (Brands) */}
+                                        <PermPicker
+                                            label="Allowed Brands (Parents)"
+                                            icon={<Box size={14} />}
+                                            selectedItems={allowed_parents}
+                                            fetchItems={getStockParents}
+                                            onToggle={(item) => togglePermItem(item, allowed_parents, setAllowedParents)}
+                                        />
+
+                                        {/* Perm Picker for Categories */}
+                                        <PermPicker
+                                            label="Allowed Categories"
+                                            icon={<Tag size={14} />}
+                                            selectedItems={allowed_categories}
+                                            fetchItems={getStockCategories}
+                                            onToggle={(item) => togglePermItem(item, allowed_categories, setAllowedCategories)}
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>

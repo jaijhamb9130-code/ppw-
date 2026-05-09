@@ -25,17 +25,6 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // Role-based default system permissions
-    // This ensures staff can still access basic pages even if their 'permissions' 
-    // column is primarily used for data-level (brand/category) restrictions.
-    const roleDefaults: Record<string, string[]> = {
-      manager: ['dashboard', 'inventory', 'orders', 'ledgers', 'staff', 'sync'],
-      employee: ['inventory', 'orders', 'ledgers', 'sync'],
-      user: ['inventory', 'orders'],
-    };
-
-    const defaultPerms = roleDefaults[user.role] || [];
-
     // Support both old format (array of strings) and new format (object with system key)
     let explicitPerms: string[] = [];
     if (Array.isArray(user.permissions)) {
@@ -44,10 +33,8 @@ export class PermissionsGuard implements CanActivate {
       explicitPerms = user.permissions.system;
     }
 
-    const allUserPerms = [...new Set([...defaultPerms, ...explicitPerms])];
-
     const requiredList = Array.isArray(required) ? required : [required];
-    const hasAny = requiredList.some((p) => allUserPerms.includes(p));
+    const hasAny = requiredList.some((p) => explicitPerms.includes(p));
 
     if (!hasAny) {
       throw new ForbiddenException(
