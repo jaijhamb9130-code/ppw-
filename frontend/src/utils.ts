@@ -18,7 +18,12 @@ export function hasPermission(user: any, perm: string | null): boolean {
   if (!user) return false;
   if (user.role === 'admin') return true; // admin bypass — matches backend
   if (perm == null) return true;            // path is open to any logged-in user
-  const perms: string[] = Array.isArray(user.permissions) ? user.permissions : [];
+  let perms: string[] = [];
+  if (Array.isArray(user.permissions)) {
+    perms = user.permissions;
+  } else if (user.permissions && Array.isArray(user.permissions.system)) {
+    perms = user.permissions.system;
+  }
   return perms.includes(perm);
 }
 
