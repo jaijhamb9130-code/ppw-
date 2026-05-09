@@ -700,38 +700,40 @@ export class AppController {
       }
 
       if (search) {
-        const stopWords = ['rs', 'rupee', 'rupees', 'inr', 'rp', 'rs.', 'rupee.', 'rupees.', '/'];
-        const terms = search.split(/\s+/)
-          .filter(t => t.length > 0)
-          .filter(t => !stopWords.includes(t.toLowerCase()));
+        const cleanSearch = search.replace(/[^a-zA-Z0-9]/g, '');
+        const cleanName = this.cleanSql('stock.name');
+        const cleanBarcode = this.cleanSql('stock.ats_barcode');
 
-        terms.forEach((term, index) => {
-          const tKey = `term${index}`;
-          const ctKey = `cleanTerm${index}`;
-          const cleanTerm = term.replace(/[^a-zA-Z0-9]/g, '');
-          
-          const termParams = {
-            [tKey]: `%${term}%`,
-            [ctKey]: `%${cleanTerm}%`
-          };
-
-          const cleanName = this.cleanSql('stock.name');
-          const cleanBarcode = this.cleanSql('stock.ats_barcode');
-          const cleanMasterId = this.cleanSql('stock.masterid');
-
+        if (parent) {
+          // Strict mode: Only search in Name or Barcode when parent is already locked
           query.andWhere(
-            `(stock.name LIKE :${tKey} 
-              OR stock.masterid LIKE :${tKey} 
-              OR stock.ats_barcode LIKE :${tKey} 
-              OR stock.group LIKE :${tKey}
-              OR stock.category LIKE :${tKey}
-              OR ${cleanName} LIKE :${ctKey}
-              OR ${cleanBarcode} LIKE :${ctKey}
-              OR ${cleanMasterId} LIKE :${ctKey}
+            `(stock.name LIKE :search 
+              OR stock.ats_barcode LIKE :search 
+              OR ${cleanName} LIKE :cleanSearch
+              OR ${cleanBarcode} LIKE :cleanSearch
              )`,
-            termParams
+            {
+              search: `%${search}%`,
+              cleanSearch: `%${cleanSearch}%`,
+            },
           );
-        });
+        } else {
+          // Global mode: Include Parent in search if no parent is selected
+          const cleanParent = this.cleanSql('stock.parent');
+          query.andWhere(
+            `(stock.name LIKE :search 
+              OR stock.ats_barcode LIKE :search 
+              OR stock.parent LIKE :search
+              OR ${cleanName} LIKE :cleanSearch
+              OR ${cleanBarcode} LIKE :cleanSearch
+              OR ${cleanParent} LIKE :cleanSearch
+             )`,
+            {
+              search: `%${search}%`,
+              cleanSearch: `%${cleanSearch}%`,
+            },
+          );
+        }
       }
 
       const [data, total] = await query
