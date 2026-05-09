@@ -167,60 +167,59 @@ export default function AdminProfile() {
 
             {/* Add/Edit User Modal */}
             {showAddModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-6 relative">
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
                         <button
                             onClick={resetForm}
-                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+                            className="absolute top-4 right-4 z-10 text-slate-400 hover:text-slate-600 bg-white/80 backdrop-blur-sm p-1 rounded-full"
                         >
-                            <X size={24} />
+                            <X size={20} />
                         </button>
 
-                        <div>
-                            <h3 className="text-2xl font-bold text-slate-800">{editingUserId ? 'Edit Staff' : 'Add New Staff'}</h3>
-                            <p className="text-slate-500">{editingUserId ? 'Update employee details.' : 'Create login credentials for a new employee.'}</p>
-                        </div>
+                        <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
+                            <div className="mb-4">
+                                <h3 className="text-xl font-black text-slate-800 tracking-tight">{editingUserId ? 'Edit Staff' : 'Add New Staff'}</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{editingUserId ? 'Update employee details' : 'Create new employee login'}</p>
+                            </div>
 
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase">Username</label>
+                            <div className="space-y-3">
+                                <div className="space-y-0.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Username</label>
                                     <input
                                         value={newUser.username}
                                         onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500"
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
                                         disabled={!!editingUserId}
                                     />
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase">Password</label>
+                                <div className="space-y-0.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Password</label>
                                     <input
                                         value={newUser.password || ''}
                                         onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                                        placeholder={editingUserId ? "Leave empty to keep" : ""}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500"
+                                        placeholder={editingUserId ? "Leave empty" : ""}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
                                     />
                                 </div>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-400 uppercase">Full Name</label>
+                            <div className="space-y-0.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Full Name</label>
                                 <input
                                     value={newUser.name}
                                     onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500"
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase">Phone Number</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-0.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Phone Number</label>
                                     <input
                                         value={newUser.number}
                                         onChange={(e) => setNewUser({ ...newUser, number: e.target.value })}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500"
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
                                     />
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase">Role</label>
+                                <div className="space-y-0.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Role</label>
                                     <select
                                         value={newUser.role}
                                         onChange={(e) => {
@@ -231,7 +230,7 @@ export default function AdminProfile() {
                                                 system_perms: role === 'manager' ? ['inventory'] : []
                                             });
                                         }}
-                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 appearance-none"
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 appearance-none text-sm font-bold"
                                     >
                                         <option value="employee">Employee</option>
                                         <option value="manager">Manager</option>
@@ -244,13 +243,13 @@ export default function AdminProfile() {
                             {newUser.role !== 'admin' && (
                                 <div className="space-y-6 pt-5 border-t border-slate-100">
                                     {/* 1. System Pages Access */}
-                                    <div className="space-y-3">
+                                    <div className="space-y-2">
                                         <div className="flex items-center gap-2">
-                                            <ShieldCheck size={18} className="text-indigo-600" />
-                                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">System Page Access</h4>
+                                            <ShieldCheck size={16} className="text-indigo-600" />
+                                            <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">System Page Access</h4>
                                         </div>
-                                        <p className="text-[10px] font-bold text-slate-400 leading-tight">
-                                            Grant access to specific modules. Staff can ONLY open these pages.
+                                        <p className="text-[9px] font-bold text-slate-400 leading-tight uppercase">
+                                            Grant access to specific modules.
                                         </p>
                                         <div className="grid grid-cols-2 gap-2">
                                             {[
@@ -269,27 +268,27 @@ export default function AdminProfile() {
                                                         const next = current.includes(p.id) ? current.filter((x: string) => x !== p.id) : [...current, p.id];
                                                         setNewUser({ ...newUser, system_perms: next });
                                                     }}
-                                                    className={`px-3 py-2.5 rounded-xl text-[11px] font-bold border transition-all text-left flex items-center justify-between ${
+                                                    className={`px-3 py-2 rounded-xl text-[10px] font-bold border transition-all text-left flex items-center justify-between ${
                                                         newUser.system_perms.includes(p.id) 
                                                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100' 
                                                         : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                                                     }`}
                                                 >
                                                     {p.label}
-                                                    {newUser.system_perms.includes(p.id) && <Check size={12} strokeWidth={4} />}
+                                                    {newUser.system_perms.includes(p.id) && <Check size={10} strokeWidth={4} />}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
 
                                     {/* 2. Data Restrictions */}
-                                    <div className="space-y-4 pt-5 border-t border-slate-100">
+                                    <div className="space-y-3 pt-4 border-t border-slate-100">
                                         <div className="flex items-center gap-2">
-                                            <Tag size={18} className="text-violet-600" />
-                                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">Data Restrictions (Brands/Categories)</h4>
+                                            <Tag size={16} className="text-violet-600" />
+                                            <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">Data Restrictions</h4>
                                         </div>
-                                        <p className="text-[10px] font-bold text-slate-400 leading-tight">
-                                            Restrict order creation and inventory view to specific data. If NONE selected, they have FULL access to all items.
+                                        <p className="text-[9px] font-bold text-slate-400 leading-tight uppercase">
+                                            Restrict view to specific brands/categories.
                                         </p>
 
                                         {/* Perm Picker for Parents (Brands) */}
@@ -314,12 +313,14 @@ export default function AdminProfile() {
                             )}
                         </div>
 
-                        <button
-                            onClick={handleSaveUser}
-                            className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-xl shadow-indigo-200 active:scale-95 transition-transform"
-                        >
-                            {editingUserId ? 'Update Account' : 'Create Account'}
-                        </button>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100">
+                            <button
+                                onClick={handleSaveUser}
+                                className="w-full py-3 bg-indigo-600 text-white text-sm font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-100 active:scale-[0.98] transition-all"
+                            >
+                                {editingUserId ? 'Update Account' : 'Create Account'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
