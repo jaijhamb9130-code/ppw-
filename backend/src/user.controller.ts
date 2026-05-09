@@ -12,13 +12,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
-import { AuthGuard } from './auth/auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth/auth.service';
 import { PermissionsGuard } from './auth/permissions.guard';
 import { RequirePermission } from './auth/permissions.decorator';
 
 @Controller('users')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 export class UserController {
   constructor(
     @InjectRepository(User)

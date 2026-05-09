@@ -1,0 +1,21 @@
+// This is just a conceptual test to verify route matching logic if I could run it.
+// Since I can't easily run the full NestJS app and hit it, I'll trust the code.
+
+/**
+ * OBSERVATIONS:
+ * 1. Global prefix is 'api'.
+ * 2. AppController has @Controller() (root).
+ * 3. confirmOrders has @Post('tally/confirm-orders').
+ * 4. Path is /api/tally/confirm-orders.
+ * 
+ * THE ERROR:
+ * "Cannot GET /api/tally/confirm-orders"
+ * 
+ * CONCLUSION:
+ * The request is arriving as GET. 
+ * If it was POST and didn't match, it would say "Cannot POST".
+ * 
+ * POSSIBLE CAUSES:
+ * - Redirect from http to https (301) which converts POST to GET.
+ * - Client (Tally) is actually sending GET.
+ */

@@ -1,0 +1,32 @@
+====================================
+???? STARTING END-TO-END TALLY SYNC TEST
+====================================
+
+--- ??????? ADMIN FLOW ---
+??? Admin Token Generated
+??? Admin Created Order #21 with 2 Mixed Items
+??? Admin Scheduled Order #21 for Tally Sync
+
+--- ???? EMPLOYEE FLOW ---
+??? Employee Token Generated
+??? Employee Created Order #22 with 1 Distinct Item
+??? Employee Scheduled Order #22 for Tally Sync
+
+???? Admin Route fetched the 2 target test orders
+
+???? Admin Order Export Data:
+   Remark: Admin Automation Test
+   Items Found: 2
+     - Item 1: 000041 999 CONFERENCE FILE (Qty: 1.00)
+     - Item 2: 000052 Dak Pad Regular (Qty: 1.00)
+   ???? RESULT: PASS - The items correctly maintained their distinct identities!
+
+???? Employee Order Export Data:
+   Remark: Employee Automation Test
+   Items Found: 1
+     - Item 1: 000052 Dak Pad Regular (Qty: 2.00)
+   ???? RESULT: PASS - Employee order correctly isolated and extracted.
+
+====================================
+??? AUTOMATED TEST CYCLE COMPLETE
+====================================

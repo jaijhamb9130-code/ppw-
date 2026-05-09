@@ -1,0 +1,15 @@
+src/pages/CreateOrder.tsx(139,15): error TS6133: 'saveAndSwitch' is declared but its value is never read.
+src/pages/CreateOrder.tsx(330,17): error TS2304: Cannot find name 'itemSearch'.
+src/pages/CreateOrder.tsx(331,29): error TS2304: Cannot find name 'itemSearch'.
+src/pages/CreateOrder.tsx(335,9): error TS2304: Cannot find name 'itemSearch'.
+src/pages/CreateOrder.tsx(358,9): error TS2304: Cannot find name 'setItemSearch'.
+src/pages/CreateOrder.tsx(388,9): error TS2304: Cannot find name 'setItemLivestockType'.
+src/pages/CreateOrder.tsx(459,29): error TS2304: Cannot find name 'itemLivestockType'.
+src/pages/CreateOrder.tsx(480,9): error TS2304: Cannot find name 'setItemLivestockType'.
+src/pages/CreateOrder.tsx(654,293): error TS2304: Cannot find name 'itemSearch'.
+src/pages/CreateOrder.tsx(654,322): error TS2304: Cannot find name 'setItemSearch'.
+src/pages/CreateOrder.tsx(659,58): error TS2304: Cannot find name 'itemSearch'.
+src/pages/CreateOrder.tsx(779,68): error TS2304: Cannot find name 'setItemLivestockType'.
+src/pages/CreateOrder.tsx(779,206): error TS2304: Cannot find name 'itemLivestockType'.
+src/pages/CreateOrder.tsx(783,68): error TS2304: Cannot find name 'setItemLivestockType'.
+src/pages/CreateOrder.tsx(783,204): error TS2304: Cannot find name 'itemLivestockType'.

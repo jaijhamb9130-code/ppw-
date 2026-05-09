@@ -73,14 +73,15 @@ export default function AdminProfile() {
 
   const handleSaveUser = async () => {
     try {
-      const payload: any = { ...newUser };
+      const { system_perms, ...rest } = newUser;
+      const payload: any = { ...rest };
 
       // Attach permissions if not admin
       if (newUser.role !== "admin") {
         payload.permissions = {
           allowedParents: allowed_parents,
           allowedCategories: allowed_categories,
-          system: newUser.system_perms,
+          system: system_perms,
         };
       }
 
