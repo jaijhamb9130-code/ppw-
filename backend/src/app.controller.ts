@@ -741,8 +741,31 @@ export class AppController {
         .skip(skip)
         .take(limitNum)
         .getManyAndCount();
+
+      // Fetch media counts for these items
+      const masterids = data.map(item => item.masterid);
+      let mediaCounts: any[] = [];
+      if (masterids.length > 0) {
+        mediaCounts = await this.stockRepo.manager
+          .createQueryBuilder('media', 'm')
+          .select('m.masterid', 'masterid')
+          .addSelect("COUNT(CASE WHEN m.slot LIKE 'img%' THEN 1 END)", 'photo_count')
+          .addSelect("COUNT(CASE WHEN m.slot LIKE 'vid%' THEN 1 END)", 'video_count')
+          .where('m.masterid IN (:...masterids)', { masterids })
+          .groupBy('m.masterid')
+          .getRawMany();
+      }
+
+      const mediaMap = new Map(mediaCounts.map(m => [m.masterid, m]));
+
+      const enrichedData = data.map(item => ({
+        ...item,
+        photo_count: parseInt(mediaMap.get(item.masterid)?.photo_count || '0'),
+        video_count: parseInt(mediaMap.get(item.masterid)?.video_count || '0'),
+      }));
+
       return {
-        data,
+        data: enrichedData,
         pagination: {
           page: pageNum,
           limit: limitNum,

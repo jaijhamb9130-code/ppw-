@@ -19,6 +19,8 @@ interface StockItem {
     rate_3: string;
     rate_3a: string;
     rate_4: string;
+    photo_count?: number;
+    video_count?: number;
 }
 
 interface ImageSlot {
@@ -316,7 +318,17 @@ export default function ItemDetailsPage({ onClose }: Props) {
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-30">
                                 {searchResults.map((item) => (
                                     <button key={item.masterid} className="w-full px-3 py-2.5 text-left hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors" onClick={() => handleSelectItem(item)}>
-                                        <div className="font-bold text-[13px] text-slate-800 truncate">{item.name}</div>
+                                        <div className="flex justify-between items-start gap-2">
+                                            <div className="font-bold text-[13px] text-slate-800 truncate">{item.name}</div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${item.photo_count ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : 'text-slate-300 bg-slate-50 border-slate-100'}`}>
+                                                    {item.photo_count || 0}/4 P
+                                                </span>
+                                                <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${item.video_count ? 'text-violet-600 bg-violet-50 border-violet-100' : 'text-slate-300 bg-slate-50 border-slate-100'}`}>
+                                                    {item.video_count || 0}/2 V
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div className="flex items-center gap-2 mt-0.5">
                                             <span className="text-[10px] font-medium text-slate-400">{item.parent}</span>
                                             <span className="text-[10px] text-slate-300">•</span>

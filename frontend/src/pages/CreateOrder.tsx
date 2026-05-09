@@ -62,22 +62,33 @@ export default function CreateOrder() {
     const { showToast } = useToast();
     const [isLocked, setIsLocked] = useState(false);
 
-    // Fetch Parents and Categories on Mount
+    // Logged-in staff permissions (admins are unrestricted)
+    const me = getUser();
+    const isAdmin = me?.role === 'admin';
+    const allowedParents: string[] = (!isAdmin && me?.permissions?.allowedParents) || [];
+    const allowedCategories: string[] = (!isAdmin && me?.permissions?.allowedCategories) || [];
+    const isItemAllowed = (item: { parent?: string; category?: string }) => {
+        if (allowedParents.length > 0 && !allowedParents.includes(item.parent || '')) return false;
+        if (allowedCategories.length > 0 && !allowedCategories.includes(item.category || '')) return false;
+        return true;
+    };
+
+    // Fetch Parents and Categories on Mount, applying staff permission restrictions
     useEffect(() => {
         const loadInitialData = async () => {
             try {
                 const [p, c] = await Promise.all([
-                    getStockGroups(),
+                    getStockParents(),
                     getStockCategories()
                 ]);
-                setParents(p);
-                setCategories(c);
+                setParents(allowedParents.length > 0 ? p.filter((x: string) => allowedParents.includes(x)) : p);
+                setCategories(allowedCategories.length > 0 ? c.filter((x: string) => allowedCategories.includes(x)) : c);
             } catch (e) {
                 console.error("Failed to load parents/categories", e);
             }
         };
         loadInitialData();
-    }, []);
+    }, [allowedParents.length, allowedCategories.length]);
 
     // Form State
     const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -344,7 +355,9 @@ export default function CreateOrder() {
             const result = await getStockItems(
                 1, 20, query, selectedCategory || '', selectedParent || ''
             );
-            setItemSearchResults(result.data);
+            // Apply UI-level filtering as an extra safety layer
+            const filtered = (result.data || []).filter((it: StockItem) => isItemAllowed(it));
+            setItemSearchResults(filtered);
         } catch (error) {
             console.error('Failed to search items', error);
         } finally {
@@ -435,6 +448,11 @@ export default function CreateOrder() {
             try {
                 const item = await getItemByBarcode(barcodeQuery);
                 if (item) {
+                    if (!isItemAllowed(item)) {
+                        showToast('You are not allowed to order this item', 'error');
+                        setFoundItem(null);
+                        return;
+                    }
                     setFoundItem(item);
                     setItemUnit(item.base_units || 'Nos');
                     setItemGst(item.gst || '0');
@@ -700,6 +718,10 @@ export default function CreateOrder() {
                                 try {
                                     const item = await getItemByBarcode(decodedText);
                                     if (item) {
+                                        if (!isItemAllowed(item)) {
+                                            showToast('You are not allowed to order this item', 'error');
+                                            return;
+                                        }
                                         setShowItemPopup(true);
                                         setFoundItem(item);
                                         setItemUnit(item.base_units || 'Nos');

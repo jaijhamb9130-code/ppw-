@@ -19,6 +19,8 @@ interface StockItem {
     rate_3: string;
     rate_3a: string;
     rate_4: string;
+    photo_count?: number;
+    video_count?: number;
 }
 
 interface Pagination {
@@ -56,13 +58,26 @@ export default function StockReport() {
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [isSyncing, setIsSyncing] = useState(false);
     const [showItemDetails, setShowItemDetails] = useState(false);
-    const isAdmin = getUser()?.role === 'admin';
+    
+    // Logged-in staff permissions (admins are unrestricted)
+    const me = getUser();
+    const isAdmin = me?.role === 'admin';
+    const allowedParents: string[] = (!isAdmin && me?.permissions?.allowedParents) || [];
+    const allowedCategories: string[] = (!isAdmin && me?.permissions?.allowedCategories) || [];
+
+    const isItemAllowed = (item: { parent?: string; category?: string }) => {
+        if (allowedParents.length > 0 && !allowedParents.includes(item.parent || '')) return false;
+        if (allowedCategories.length > 0 && !allowedCategories.includes(item.category || '')) return false;
+        return true;
+    };
 
     const fetchData = useCallback(async (page: number, search: string) => {
         setLoading(true);
         try {
             const result = await getStockItems(page, 50, search);
-            setItems(result.data);
+            // Filter results for non-admins
+            const filtered = isAdmin ? result.data : (result.data || []).filter((it: any) => isItemAllowed(it));
+            setItems(filtered);
             setPagination(result.pagination);
             setExpandedIds(new Set());
         } catch (error) {
@@ -70,7 +85,7 @@ export default function StockReport() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [isAdmin]);
 
     // Initial fetch and Search change
     useEffect(() => {
@@ -123,14 +138,16 @@ export default function StockReport() {
             {showItemDetails && <ItemDetailsPage onClose={() => setShowItemDetails(false)} />}
 
 
-            {/* FAB for Item Details */}
-            <button
-                onClick={() => setShowItemDetails(true)}
-                className="fixed bottom-24 right-5 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-indigo-700 active:scale-95 transition-all z-40 group border-4 border-white"
-                title="Add / Manage Item Details"
-            >
-                <Plus size={24} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
-            </button>
+            {/* FAB for Item Details - Restricted to Admin/Manager */}
+            {(isAdmin || me?.role === 'manager') && (
+                <button
+                    onClick={() => setShowItemDetails(true)}
+                    className="fixed bottom-24 right-5 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-indigo-700 active:scale-95 transition-all z-40 group border-4 border-white"
+                    title="Add / Manage Item Details"
+                >
+                    <Plus size={24} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
+                </button>
+            )}
 
             {/* Simple Header */}
             <div className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-20 shadow-sm space-y-3">
@@ -201,9 +218,19 @@ export default function StockReport() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="text-right flex flex-col items-end gap-2">
-                                        <div className="font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-1 rounded text-sm min-w-[60px] text-center">
-                                            {item.closing_balance || '0'} <span className="text-[10px] text-slate-400 font-normal">{item.base_units}</span>
+                                    <div className="text-right flex flex-col items-end gap-1.5">
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-1 rounded text-sm min-w-[60px] text-center">
+                                                {item.closing_balance || '0'} <span className="text-[10px] text-slate-400 font-normal">{item.base_units}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${item.photo_count ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : 'text-slate-300 bg-slate-50 border-slate-100'}`}>
+                                                    {item.photo_count || 0}/4 P
+                                                </span>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${item.video_count ? 'text-violet-600 bg-violet-50 border-violet-100' : 'text-slate-300 bg-slate-50 border-slate-100'}`}>
+                                                    {item.video_count || 0}/2 V
+                                                </span>
+                                            </div>
                                         </div>
                                         <ChevronDown size={16} className={`text-slate-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                     </div>

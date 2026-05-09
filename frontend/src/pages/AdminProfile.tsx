@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
-import { getUsers, createUser, deleteUser, updateUser } from '../api';
-import { Plus, Trash2, X, Edit2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { getUsers, createUser, deleteUser, updateUser, getStockParents, getStockCategories } from '../api';
+import { Plus, Trash2, X, Edit2, Search, Check, ShieldCheck, Tag, Box } from 'lucide-react';
 
 export default function AdminProfile() {
     const [users, setUsers] = useState<any[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingUserId, setEditingUserId] = useState<number | null>(null);
     const [newUser, setNewUser] = useState({ username: '', password: '', name: '', number: '', role: 'employee' });
+
+    // PermPicker State
+    const [allowed_parents, setAllowedParents] = useState<string[]>([]);
+    const [allowed_categories, setAllowedCategories] = useState<string[]>([]);
 
     useEffect(() => {
         fetchUsers();
@@ -23,19 +27,30 @@ export default function AdminProfile() {
 
     const resetForm = () => {
         setNewUser({ username: '', password: '', name: '', number: '', role: 'employee' });
+        setAllowedParents([]);
+        setAllowedCategories([]);
         setEditingUserId(null);
         setShowAddModal(false);
     };
 
     const handleSaveUser = async () => {
         try {
+            const payload: any = { ...newUser };
+
+            // Attach permissions if not admin
+            if (newUser.role !== 'admin') {
+                payload.permissions = {
+                    allowedParents: allowed_parents,
+                    allowedCategories: allowed_categories,
+                };
+            }
+
             if (editingUserId) {
-                const updatePayload: any = { ...newUser };
-                if (!updatePayload.password) delete updatePayload.password;
-                await updateUser(editingUserId, updatePayload);
+                if (!payload.password) delete payload.password;
+                await updateUser(editingUserId, payload);
                 alert('User updated!');
             } else {
-                await createUser(newUser);
+                await createUser(payload);
                 alert('User created!');
             }
             resetForm();
@@ -56,6 +71,16 @@ export default function AdminProfile() {
             number: user.number || '',
             role: user.role
         });
+
+        // Load permissions
+        if (user.permissions) {
+            setAllowedParents(user.permissions.allowedParents || []);
+            setAllowedCategories(user.permissions.allowedCategories || []);
+        } else {
+            setAllowedParents([]);
+            setAllowedCategories([]);
+        }
+
         setShowAddModal(true);
     };
 
@@ -191,6 +216,37 @@ export default function AdminProfile() {
                                     </select>
                                 </div>
                             </div>
+
+                            {/* Permissions - Only for non-admins */}
+                            {newUser.role !== 'admin' && (
+                                <div className="space-y-4 pt-2 border-t border-slate-100">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <ShieldCheck size={18} className="text-indigo-500" />
+                                        <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">Staff Data Restrictions</h4>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-400 leading-tight">
+                                        RESTRICT this staff to specific Brands or Categories. If NONE are selected, they will have FULL ACCESS.
+                                    </p>
+
+                                    {/* Perm Picker for Parents (Brands) */}
+                                    <PermPicker
+                                        label="Allowed Brands (Parents)"
+                                        icon={<Box size={14} />}
+                                        selectedItems={allowed_parents}
+                                        fetchItems={getStockParents}
+                                        onToggle={(item) => togglePermItem(item, allowed_parents, setAllowedParents)}
+                                    />
+
+                                    {/* Perm Picker for Categories */}
+                                    <PermPicker
+                                        label="Allowed Categories"
+                                        icon={<Tag size={14} />}
+                                        selectedItems={allowed_categories}
+                                        fetchItems={getStockCategories}
+                                        onToggle={(item) => togglePermItem(item, allowed_categories, setAllowedCategories)}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <button
@@ -200,6 +256,111 @@ export default function AdminProfile() {
                             {editingUserId ? 'Update Account' : 'Create Account'}
                         </button>
                     </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Helper to toggle items in a permission array
+function togglePermItem(item: string, list: string[], setList: (l: string[]) => void) {
+    if (list.includes(item)) {
+        setList(list.filter(x => x !== item));
+    } else {
+        setList([...list, item]);
+    }
+}
+
+// Reusable Permission Picker Component
+function PermPicker({ label, icon, selectedItems, fetchItems, onToggle }: {
+    label: string,
+    icon: any,
+    selectedItems: string[],
+    fetchItems: (search: string) => Promise<string[]>,
+    onToggle: (item: string) => void
+}) {
+    const [search, setSearch] = useState('');
+    const [results, setResults] = useState<string[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    const searchRef = useCallback(async (query: string) => {
+        if (!query) {
+            setResults([]);
+            return;
+        }
+        setLoading(true);
+        try {
+            const data = await fetchItems(query);
+            setResults(data.filter(x => x && x.trim() !== ''));
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchItems]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => searchRef(search), 300);
+        return () => clearTimeout(timer);
+    }, [search, searchRef]);
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                {icon}
+                {label}
+                <span className="ml-auto text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full">{selectedItems.length} Selected</span>
+            </div>
+
+            {/* Selected Pills */}
+            {selectedItems.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                    {selectedItems.map(item => (
+                        <button
+                            key={item}
+                            onClick={() => onToggle(item)}
+                            className="flex items-center gap-1 bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg text-[10px] font-bold border border-indigo-200 hover:bg-indigo-200"
+                        >
+                            {item}
+                            <X size={12} />
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Search Input */}
+            <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                    placeholder={`Search ${label}...`}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-400"
+                />
+            </div>
+
+            {/* Search Results */}
+            {search.length > 0 && (
+                <div className="max-h-32 overflow-y-auto border border-slate-100 rounded-xl bg-white shadow-lg divide-y divide-slate-50">
+                    {loading ? (
+                        <div className="p-2 text-center text-[10px] font-bold text-indigo-500 animate-pulse">Searching...</div>
+                    ) : results.length === 0 ? (
+                        <div className="p-2 text-center text-[10px] font-bold text-slate-400">No matches found</div>
+                    ) : (
+                        results.map(item => {
+                            const isSelected = selectedItems.includes(item);
+                            return (
+                                <button
+                                    key={item}
+                                    onClick={() => onToggle(item)}
+                                    className="w-full text-left px-3 py-2 text-[10px] font-bold hover:bg-slate-50 flex justify-between items-center"
+                                >
+                                    <span className={isSelected ? 'text-indigo-600' : 'text-slate-700'}>{item}</span>
+                                    {isSelected && <Check size={14} className="text-indigo-600" />}
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
             )}
         </div>

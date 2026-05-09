@@ -62,6 +62,13 @@ export const getStockGroups = async (search = '') => {
     return response.data;
 };
 
+export const getStockParents = async (search = '') => {
+    const response = await api.get('/stock-items/parents', {
+        params: { search },
+    });
+    return response.data;
+};
+
 export const getStockCategories = async (search = '') => {
     const response = await api.get('/stock-items/categories', {
         params: { search },
