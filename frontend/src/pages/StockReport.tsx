@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { getStockItems, syncStockItems, getUser } from '../api';
 import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw, Plus } from 'lucide-react';
 import ItemDetailsPage from '../components/ItemDetailsPage';
@@ -60,24 +60,31 @@ export default function StockReport() {
     const [showItemDetails, setShowItemDetails] = useState(false);
     
     // Logged-in staff permissions (admins are unrestricted)
-    const me = getUser();
+    const me = useMemo(() => getUser(), []);
     const isAdmin = me?.role === 'admin';
-    const allowedParents: string[] = (!isAdmin && me?.permissions?.allowedParents) || [];
-    const allowedCategories: string[] = (!isAdmin && me?.permissions?.allowedCategories) || [];
+    
+    const allowedParents = useMemo(() => 
+        ((!isAdmin && me?.permissions?.allowedParents) || []).join(','), 
+        [isAdmin, me?.permissions?.allowedParents]
+    );
 
-    const isItemAllowed = (item: { parent?: string; category?: string }) => {
-        if (allowedParents.length > 0 && !allowedParents.includes(item.parent || '')) return false;
-        if (allowedCategories.length > 0 && !allowedCategories.includes(item.category || '')) return false;
-        return true;
-    };
+    const allowedCategories = useMemo(() => 
+        ((!isAdmin && me?.permissions?.allowedCategories) || []).join(','), 
+        [isAdmin, me?.permissions?.allowedCategories]
+    );
+
 
     const fetchData = useCallback(async (page: number, search: string) => {
         setLoading(true);
         try {
-            const result = await getStockItems(page, 50, search);
-            // Filter results for non-admins
-            const filtered = isAdmin ? result.data : (result.data || []).filter((it: any) => isItemAllowed(it));
-            setItems(filtered);
+            const result = await getStockItems(
+                page, 
+                50, 
+                search, 
+                allowedCategories, 
+                allowedParents
+            );
+            setItems(result.data || []);
             setPagination(result.pagination);
             setExpandedIds(new Set());
         } catch (error) {
@@ -85,7 +92,7 @@ export default function StockReport() {
         } finally {
             setLoading(false);
         }
-    }, [isAdmin]);
+    }, [allowedCategories, allowedParents]);
 
     // Initial fetch and Search change
     useEffect(() => {

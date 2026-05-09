@@ -30,6 +30,7 @@ export default function AdminProfile() {
     number: string;
     role: string;
     system_perms: string[];
+    allowedOrderTypes: string[];
   }>({
     username: "",
     password: "",
@@ -37,6 +38,7 @@ export default function AdminProfile() {
     number: "",
     role: "employee",
     system_perms: [],
+    allowedOrderTypes: ["Tax Invoice", "Quotation"],
   });
 
   // PermPicker State
@@ -64,6 +66,7 @@ export default function AdminProfile() {
       number: "",
       role: "employee",
       system_perms: [],
+      allowedOrderTypes: ["Tax Invoice", "Quotation"],
     });
     setAllowedParents([]);
     setAllowedCategories([]);
@@ -73,7 +76,7 @@ export default function AdminProfile() {
 
   const handleSaveUser = async () => {
     try {
-      const { system_perms, ...rest } = newUser;
+      const { system_perms, allowedOrderTypes, ...rest } = newUser;
       const payload: any = { ...rest };
 
       // Attach permissions if not admin
@@ -82,6 +85,7 @@ export default function AdminProfile() {
           allowedParents: allowed_parents,
           allowedCategories: allowed_categories,
           system: system_perms,
+          orderTypes: allowedOrderTypes,
         };
       }
 
@@ -104,23 +108,20 @@ export default function AdminProfile() {
 
   const handleEditClick = (user: any) => {
     setEditingUserId(user.id);
+    const perms = user.permissions || {};
     setNewUser({
       username: user.username,
       password: "",
       name: user.name || "",
       number: user.number || "",
       role: user.role,
-      system_perms: user.permissions?.system || [],
+      system_perms: perms.system || [],
+      allowedOrderTypes: perms.orderTypes || ["Tax Invoice", "Quotation"],
     });
 
     // Load permissions
-    if (user.permissions) {
-      setAllowedParents(user.permissions.allowedParents || []);
-      setAllowedCategories(user.permissions.allowedCategories || []);
-    } else {
-      setAllowedParents([]);
-      setAllowedCategories([]);
-    }
+    setAllowedParents(perms.allowedParents || []);
+    setAllowedCategories(perms.allowedCategories || []);
 
     setShowAddModal(true);
   };
@@ -318,14 +319,14 @@ export default function AdminProfile() {
                     <p className="text-[9px] font-bold text-slate-400 leading-tight uppercase">
                       Grant access to specific modules.
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {[
                         { id: "dashboard", label: "Dashboard" },
                         { id: "inventory", label: "Inventory" },
-                        { id: "orders", label: "Orders List" },
-                        { id: "staff", label: "Roles/Staff" },
+                        { id: "orders", label: "Orders" },
+                        { id: "staff", label: "Staff" },
                         { id: "ledgers", label: "Ledgers" },
-                        { id: "sync", label: "Sync Tally" },
+                        { id: "sync", label: "Sync" },
                       ].map((p) => (
                         <button
                           key={p.id}
@@ -337,13 +338,13 @@ export default function AdminProfile() {
                               : [...current, p.id];
                             setNewUser({ ...newUser, system_perms: next });
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all text-left flex items-center justify-between ${
+                          className={`px-2 py-1.5 rounded-xl text-[10px] font-black border transition-all text-center flex flex-col items-center justify-center gap-0.5 ${
                             newUser.system_perms.includes(p.id)
                               ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
                               : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100"
                           }`}
                         >
-                          {p.label}
+                          <span className="leading-tight">{p.label}</span>
                           {newUser.system_perms.includes(p.id) && (
                             <Check size={8} strokeWidth={5} />
                           )}
@@ -353,42 +354,75 @@ export default function AdminProfile() {
                   </div>
 
                   {/* 2. Data Restrictions */}
-                  <div className="space-y-2 pt-3 border-t border-slate-100">
+                  <div className="space-y-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-2">
                       <Tag size={16} className="text-violet-600" />
                       <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
                         Data Restrictions
                       </h4>
+
+                      {/* Order Type Tabs */}
+                      <div className="ml-auto flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                        {["Tax Invoice", "Quotation"].map((type) => {
+                          const isSelected = newUser.allowedOrderTypes.includes(type);
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => {
+                                const current = newUser.allowedOrderTypes;
+                                const next = isSelected
+                                  ? current.filter((t) => t !== type)
+                                  : [...current, type];
+                                setNewUser({
+                                  ...newUser,
+                                  allowedOrderTypes: next,
+                                });
+                              }}
+                              className={`px-2 py-1 rounded-md text-[9px] font-black uppercase transition-all ${
+                                isSelected
+                                  ? "bg-white text-indigo-600 shadow-sm"
+                                  : "text-slate-400 hover:text-slate-600"
+                              }`}
+                            >
+                              {type === "Tax Invoice" ? "Inv" : "Quo"}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <p className="text-[9px] font-bold text-slate-400 leading-tight uppercase">
-                      Restrict view to specific brands/categories.
+                      Restrict brands/categories & order types.
                     </p>
 
-                    {/* Perm Picker for Parents (Brands) */}
-                    <PermPicker
-                      label="Allowed Brands (Parents)"
-                      icon={<Box size={14} />}
-                      selectedItems={allowed_parents}
-                      fetchItems={getStockParents}
-                      onToggle={(item) =>
-                        togglePermItem(item, allowed_parents, setAllowedParents)
-                      }
-                    />
-
-                    {/* Perm Picker for Categories */}
-                    <PermPicker
-                      label="Allowed Categories"
-                      icon={<Tag size={14} />}
-                      selectedItems={allowed_categories}
-                      fetchItems={getStockCategories}
-                      onToggle={(item) =>
-                        togglePermItem(
-                          item,
-                          allowed_categories,
-                          setAllowedCategories,
-                        )
-                      }
-                    />
+                    <div className="space-y-3">
+                      <PermPicker
+                        label="Allowed Brands"
+                        icon={<Box size={14} />}
+                        selectedItems={allowed_parents}
+                        fetchItems={getStockParents}
+                        onToggle={(item) =>
+                          togglePermItem(
+                            item,
+                            allowed_parents,
+                            setAllowedParents,
+                          )
+                        }
+                      />
+                      <PermPicker
+                        label="Allowed Categories"
+                        icon={<Tag size={14} />}
+                        selectedItems={allowed_categories}
+                        fetchItems={getStockCategories}
+                        onToggle={(item) =>
+                          togglePermItem(
+                            item,
+                            allowed_categories,
+                            setAllowedCategories,
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               )}

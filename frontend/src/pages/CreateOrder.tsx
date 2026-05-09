@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera } from 'lucide-react';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -63,10 +63,34 @@ export default function CreateOrder() {
     const [isLocked, setIsLocked] = useState(false);
 
     // Logged-in staff permissions (admins are unrestricted)
-    const me = getUser();
+    const me = useMemo(() => getUser(), []);
     const isAdmin = me?.role === 'admin';
-    const allowedParents: string[] = (!isAdmin && me?.permissions?.allowedParents) || [];
-    const allowedCategories: string[] = (!isAdmin && me?.permissions?.allowedCategories) || [];
+    
+    const allowedParentsStr = useMemo(() => 
+        ((!isAdmin && me?.permissions?.allowedParents) || []).join(','), 
+        [isAdmin, me?.permissions?.allowedParents]
+    );
+
+    const allowedCategoriesStr = useMemo(() => 
+        ((!isAdmin && me?.permissions?.allowedCategories) || []).join(','), 
+        [isAdmin, me?.permissions?.allowedCategories]
+    );
+
+    const allowedParents: string[] = useMemo(() => 
+        (!isAdmin && me?.permissions?.allowedParents) || [], 
+        [isAdmin, me?.permissions?.allowedParents]
+    );
+
+    const allowedCategories: string[] = useMemo(() => 
+        (!isAdmin && me?.permissions?.allowedCategories) || [], 
+        [isAdmin, me?.permissions?.allowedCategories]
+    );
+
+    const allowedOrderTypes: string[] = useMemo(() => 
+        (!isAdmin && me?.permissions?.orderTypes) || ['Tax Invoice', 'Quotation'],
+        [isAdmin, me?.permissions?.orderTypes]
+    );
+
     const isItemAllowed = (item: { parent?: string; category?: string }) => {
         if (allowedParents.length > 0 && !allowedParents.includes(item.parent || '')) return false;
         if (allowedCategories.length > 0 && !allowedCategories.includes(item.category || '')) return false;
@@ -161,7 +185,7 @@ export default function CreateOrder() {
     const [orderDate] = useState(new Date().toISOString().split('T')[0]);
     const [showRateDropdown, setShowRateDropdown] = useState(false);
     const [items, setItems] = useState<OrderItem[]>([]);
-    const [orderType, setOrderType] = useState('Tax Invoice');
+    const [orderType, setOrderType] = useState(allowedOrderTypes[0] || 'Tax Invoice');
     const [remark, setRemark] = useState('');
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const ledgerInputRef = useRef<HTMLInputElement>(null);
@@ -352,12 +376,14 @@ export default function CreateOrder() {
         if (!query && !selectedCategory && !selectedParent) return;
         setItemSearchLoading(true);
         try {
+            // Combine selected filter with staff restrictions
+            const parentFilter = selectedParent || allowedParentsStr;
+            const categoryFilter = selectedCategory || allowedCategoriesStr;
+
             const result = await getStockItems(
-                1, 20, query, selectedCategory || '', selectedParent || ''
+                1, 20, query, categoryFilter, parentFilter
             );
-            // Apply UI-level filtering as an extra safety layer
-            const filtered = (result.data || []).filter((it: StockItem) => isItemAllowed(it));
-            setItemSearchResults(filtered);
+            setItemSearchResults(result.data || []);
         } catch (error) {
             console.error('Failed to search items', error);
         } finally {
@@ -678,7 +704,18 @@ export default function CreateOrder() {
                     )}
                     <div className="grid grid-cols-2 gap-2">
                         <div><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Date</label><div className="w-full px-2.5 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 uppercase">{orderDate}</div></div>
-                        <div><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Order Type</label><select className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-indigo-700 outline-none" value={orderType} disabled={isLocked} onChange={(e) => setOrderType(e.target.value)}><option value="Tax Invoice">Tax Invoice</option><option value="Quotation">Quotation</option></select></div>
+                        <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Order Type</label>
+                            <select 
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-indigo-700 outline-none" 
+                                value={orderType} 
+                                disabled={isLocked || (allowedOrderTypes.length <= 1 && !isAdmin)} 
+                                onChange={(e) => setOrderType(e.target.value)}
+                            >
+                                {allowedOrderTypes.includes('Tax Invoice') && <option value="Tax Invoice">Tax Invoice</option>}
+                                {allowedOrderTypes.includes('Quotation') && <option value="Quotation">Quotation</option>}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
