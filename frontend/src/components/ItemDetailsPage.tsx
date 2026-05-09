@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getStockItems, getItemDetails, saveItemDetails, getUser } from '../api';
 import { ArrowLeft, Save, Undo2, Loader, Search, ImagePlus, Trash2, Pencil, Camera, Video } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
+import MediaPicker from './MediaPicker';
 
 interface StockItem {
     masterid: string;
@@ -65,6 +66,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
     const [savedItemName, setSavedItemName] = useState('');
     const [isEditingName, setIsEditingName] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
+    const [activePicker, setActivePicker] = useState<{ type: 'image' | 'video', index: number } | null>(null);
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
@@ -392,7 +394,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                         <div
                                             key={slot.slot}
                                             className="relative bg-white border-2 border-dashed border-slate-200 rounded-xl aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-indigo-300 transition-all group cursor-pointer"
-                                            onClick={() => { if (!slot.previewUrl) fileInputRefs.current[index]?.click(); }}
+                                            onClick={() => { if (!slot.previewUrl) setActivePicker({ type: 'image', index }); }}
                                         >
                                             <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-slate-800/60 flex items-center justify-center z-10">
                                                 <span className="text-[8px] font-bold text-white">{slot.slot}</span>
@@ -418,7 +420,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                                     <span className="text-[8px] font-bold">Add</span>
                                                 </div>
                                             )}
-                                            <input ref={(el) => { fileInputRefs.current[index] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) { handleImageUpload(index, e.target.files[0]); e.target.value = ''; } }} />
+
                                         </div>
                                     ))}
                                 </div>
@@ -436,7 +438,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                             key={slot.slot}
                                             className="relative bg-white border-2 border-dashed border-slate-200 rounded-xl overflow-hidden hover:border-violet-300 transition-all group cursor-pointer"
                                             style={{ aspectRatio: '16/10' }}
-                                            onClick={() => { if (!slot.previewUrl) videoInputRefs.current[index]?.click(); }}
+                                            onClick={() => { if (!slot.previewUrl) setActivePicker({ type: 'video', index }); }}
                                         >
                                             {/* Slot badge */}
                                             <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-slate-800/60 flex items-center justify-center z-10">
@@ -485,13 +487,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                                 </div>
                                             )}
 
-                                            <input
-                                                ref={(el) => { videoInputRefs.current[index] = el; }}
-                                                type="file"
-                                                accept="video/mp4,video/*"
-                                                className="hidden"
-                                                onChange={(e) => { if (e.target.files?.[0]) { handleVideoUpload(index, e.target.files[0]); e.target.value = ''; } }}
-                                            />
+
                                         </div>
                                     ))}
                                 </div>
@@ -517,6 +513,17 @@ export default function ItemDetailsPage({ onClose }: Props) {
                         {saving ? 'Saving...' : 'Save'}
                     </button>
                 </div>
+            )}
+
+            {activePicker && (
+                <MediaPicker 
+                    type={activePicker.type}
+                    onFileSelect={(file) => {
+                        if (activePicker.type === 'image') handleImageUpload(activePicker.index, file);
+                        else handleVideoUpload(activePicker.index, file);
+                    }}
+                    onClose={() => setActivePicker(null)}
+                />
             )}
         </div>
     );

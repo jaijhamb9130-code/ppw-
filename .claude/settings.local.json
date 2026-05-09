@@ -47,7 +47,13 @@
       "Bash(npm root:*)",
       "Bash(npm uninstall:*)",
       "Bash(taskkill //F //IM ngrok.exe)",
-      "Bash(\"C:/Users/DELL/AppData/Roaming/npm/node_modules/ngrok/bin/ngrok.exe\" version:*)"
+      "Bash(\"C:/Users/DELL/AppData/Roaming/npm/node_modules/ngrok/bin/ngrok.exe\" version:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_search",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "mcp__plugin_context-mode_context-mode__ctx_execute"
     ],
     "additionalDirectories": [
       "d:\\abs\\abs\\ppw\\frontend\\dist"

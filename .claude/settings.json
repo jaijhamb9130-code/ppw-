@@ -14,7 +14,8 @@
       "Bash(curl -s \"http://localhost:3000/api/reports/stock-items?page=1&limit=5\")",
       "Bash(python3 -m json.tool)",
       "Bash(npm install -D @vitejs/plugin-basic-ssl)",
-      "Bash(taskkill.exe //F //FI \"WINDOWTITLE eq *vite*\")"
+      "Bash(taskkill.exe //F //FI \"WINDOWTITLE eq *vite*\")",
+      "Read(//c/Users/jaijh/OneDrive/Desktop/ABS/admin-customer/**)"
     ]
   }
 }
