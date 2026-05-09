@@ -5,8 +5,6 @@ import { getOrders, deleteOrder, syncOrderToTally, getUser } from '../api';
 
 // Define interfaces locally if not exported from api
 const copper = '#b8804a';
-const copperDark = '#9a6a3c';
-const parchment = '#fdf8f3';
 const cream = '#f7f0e8';
 
 interface Order {
