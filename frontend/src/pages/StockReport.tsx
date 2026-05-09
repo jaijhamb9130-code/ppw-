@@ -77,16 +77,12 @@ export default function StockReport() {
     const fetchData = useCallback(async (page: number, search: string) => {
         setLoading(true);
         try {
-            // Use UI selection if active, otherwise use staff restrictions
-            const parentFilter = selectedParent || allowedParents;
-            const categoryFilter = selectedCategory || allowedCategories;
-
             const result = await getStockItems(
                 page, 
                 50, 
                 search, 
-                categoryFilter, 
-                parentFilter
+                allowedCategories, 
+                allowedParents
             );
             setItems(result.data || []);
             setPagination(result.pagination);
