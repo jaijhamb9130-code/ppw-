@@ -226,11 +226,18 @@ export default function AdminProfile() {
                                 </div>
                             </div>
 
-                            {/* Permissions - Only for non-admins */}
+                            {/* Permissions Section - Only for non-admins */}
                             {newUser.role !== 'admin' && (
-                                <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <div className="space-y-6 pt-5 border-t border-slate-100">
+                                    {/* 1. System Pages Access */}
                                     <div className="space-y-3">
-                                        <label className="text-xs font-bold text-slate-400 uppercase">System Pages Access</label>
+                                        <div className="flex items-center gap-2">
+                                            <ShieldCheck size={18} className="text-indigo-600" />
+                                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">System Page Access</h4>
+                                        </div>
+                                        <p className="text-[10px] font-bold text-slate-400 leading-tight">
+                                            Grant access to specific modules. Staff can ONLY open these pages.
+                                        </p>
                                         <div className="grid grid-cols-2 gap-2">
                                             {[
                                                 { id: 'dashboard', label: 'Dashboard' },
@@ -248,10 +255,10 @@ export default function AdminProfile() {
                                                         const next = current.includes(p.id) ? current.filter(x => x !== p.id) : [...current, p.id];
                                                         setNewUser({ ...newUser, system_perms: next });
                                                     }}
-                                                    className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all text-left flex items-center justify-between ${
+                                                    className={`px-3 py-2.5 rounded-xl text-[11px] font-bold border transition-all text-left flex items-center justify-between ${
                                                         newUser.system_perms.includes(p.id) 
                                                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100' 
-                                                        : 'bg-slate-50 border-slate-200 text-slate-500'
+                                                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                                                     }`}
                                                 >
                                                     {p.label}
@@ -261,13 +268,14 @@ export default function AdminProfile() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4 pt-2 border-t border-slate-100">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <ShieldCheck size={18} className="text-indigo-500" />
-                                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">Staff Data Restrictions</h4>
+                                    {/* 2. Data Restrictions */}
+                                    <div className="space-y-4 pt-5 border-t border-slate-100">
+                                        <div className="flex items-center gap-2">
+                                            <Tag size={18} className="text-violet-600" />
+                                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-tight">Data Restrictions (Brands/Categories)</h4>
                                         </div>
                                         <p className="text-[10px] font-bold text-slate-400 leading-tight">
-                                            RESTRICT this staff to specific Brands or Categories. If NONE are selected, they will have FULL ACCESS.
+                                            Restrict order creation and inventory view to specific data. If NONE selected, they have FULL access to all items.
                                         </p>
 
                                         {/* Perm Picker for Parents (Brands) */}
