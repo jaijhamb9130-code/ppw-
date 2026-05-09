@@ -6,7 +6,21 @@ export default function AdminProfile() {
     const [users, setUsers] = useState<any[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingUserId, setEditingUserId] = useState<number | null>(null);
-    const [newUser, setNewUser] = useState({ username: '', password: '', name: '', number: '', role: 'employee' });
+    const [newUser, setNewUser] = useState<{
+        username: string;
+        password?: string;
+        name: string;
+        number: string;
+        role: string;
+        system_perms: string[];
+    }>({ 
+        username: '', 
+        password: '', 
+        name: '', 
+        number: '', 
+        role: 'employee', 
+        system_perms: [] 
+    });
 
     // PermPicker State
     const [allowed_parents, setAllowedParents] = useState<string[]>([]);
@@ -252,7 +266,7 @@ export default function AdminProfile() {
                                                     type="button"
                                                     onClick={() => {
                                                         const current = newUser.system_perms;
-                                                        const next = current.includes(p.id) ? current.filter(x => x !== p.id) : [...current, p.id];
+                                                        const next = current.includes(p.id) ? current.filter((x: string) => x !== p.id) : [...current, p.id];
                                                         setNewUser({ ...newUser, system_perms: next });
                                                     }}
                                                     className={`px-3 py-2.5 rounded-xl text-[11px] font-bold border transition-all text-left flex items-center justify-between ${
