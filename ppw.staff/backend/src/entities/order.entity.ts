@@ -71,7 +71,7 @@ export class Order {
   @Column({ type: 'date' })
   date: Date;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 14, scale: 2 })
   total_amount: number;
 
   @ManyToOne(() => User, { nullable: true })
@@ -92,7 +92,7 @@ export class Order {
   })
   source: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'decimal', precision: 14, scale: 2, nullable: true })
   amount_given: number;
 
   @CreateDateColumn()

@@ -32,7 +32,7 @@ export class OrderDetail {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   quantity: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 14, scale: 2 })
   amount: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })

@@ -88,6 +88,19 @@ export default function OrderReport() {
         }
     }, [userId, selectedDate, activeFilter, searchParams]);
 
+    // Whenever we land on the plain Day Book (no staff drill-down), snap the date
+    // filter back to the current IST day. So after viewing a staff member's older
+    // entries and coming back, it auto-returns to "today" without the user having to
+    // re-select it. Manual date picks on the normal view are preserved (this only
+    // runs when the userId drill-down param changes). Applies to every role.
+    useEffect(() => {
+        if (!userId && searchParams.get('range') !== 'fy') {
+            const istTime = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            setSelectedDate(`${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]);
+
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {

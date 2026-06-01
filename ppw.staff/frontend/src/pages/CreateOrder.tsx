@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera } from 'lucide-react';
+import { Save, Scan, X, ChevronLeft, Search, ArrowRight, UserPlus, ChevronDown, MessageSquare, Info, Users, FileText, MapPin, Camera, ClipboardList } from 'lucide-react';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { getLedgers, getItemByBarcode, createOrder, getStockItems, createLedger, getOrderById, getOrderDetails, updateOrder, syncOrderToTally, getLiveStock, getDraftOrders, getStockParents, getStockCategories, getUser } from '../api';
 import { useToast } from '../context/ToastContext';
@@ -65,6 +65,10 @@ export default function CreateOrder() {
     // Logged-in staff permissions (admins are unrestricted)
     const me = getUser();
     const isAdmin = me?.role === 'admin';
+    const isEmployee = me?.role === 'employee';
+    // Employees land here straight from login, so browser-back goes to /login (looks like a logout).
+    // Send them to their order History instead; everyone else keeps normal back behavior.
+    const exitOrder = () => { if (isEmployee) navigate('/orders'); else navigate(-1); };
     const allowedParents: string[] = (!isAdmin && me?.permissions?.allowedParents) || [];
     const allowedCategories: string[] = (!isAdmin && me?.permissions?.allowedCategories) || [];
     const isItemAllowed = (item: { parent?: string; category?: string }) => {
@@ -158,7 +162,12 @@ export default function CreateOrder() {
 
 
 
-    const [orderDate] = useState(new Date().toISOString().split('T')[0]);
+    const [orderDate] = useState(() => {
+        // Use the IST (local) date, not UTC. toISOString() returns UTC, which rolls
+        // back to "yesterday" for the first 5.5h after midnight IST and mis-dates orders.
+        const istTime = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        return `${istTime.getUTCFullYear()}-${String(istTime.getUTCMonth() + 1).padStart(2, '0')}-${String(istTime.getUTCDate()).padStart(2, '0')}`;
+    });
     const [showRateDropdown, setShowRateDropdown] = useState(false);
     const [items, setItems] = useState<OrderItem[]>([]);
     const [orderType, setOrderType] = useState('Tax Invoice');
@@ -546,16 +555,25 @@ export default function CreateOrder() {
         }
         if (isSaving) return;
         setIsSaving(true);
-        const totalAmount = calculateTotalWithTax();
+        // Sanitize every numeric field so a malformed item can't poison the payload.
+        const cleanItems = items.map((it) => ({
+            ...it,
+            rate: Number(it.rate) || 0,
+            quantity: Number(it.quantity) || 0,
+            amount: Number(it.amount) || 0,
+            gst: Number(it.gst) || 0,
+            selected_discount: Number(it.selected_discount) || 0,
+        }));
+        const totalAmount = cleanItems.reduce((sum, it) => sum + it.amount, 0);
         try {
             const orderData = {
                 ledger_id: selectedLedger,
                 date: orderDate,
                 total_amount: totalAmount,
-                items: items,
+                items: cleanItems,
                 order_type: orderType,
                 remark: remark,
-                amount_given: amountGiven ? parseFloat(amountGiven) : null
+                amount_given: amountGiven ? (parseFloat(amountGiven) || null) : null
             };
             let savedOrderId;
             if (isEditMode && id) {
@@ -586,7 +604,9 @@ export default function CreateOrder() {
         }
     };
 
-    const calculateItemTotalWithTax = (item: OrderItem) => item.amount;
+    // Coerce to Number: draft items reloaded from the API have string amounts, and a single
+    // non-numeric value would otherwise turn the reduce into NaN (-> null total -> server 500).
+    const calculateItemTotalWithTax = (item: OrderItem) => Number(item.amount) || 0;
     const calculateTotalWithTax = () => items.reduce((sum, item) => sum + calculateItemTotalWithTax(item), 0);
     const calculateCurrentItemTotal = () => {
         const qty = parseFloat(itemQty || '0');
@@ -602,7 +622,7 @@ export default function CreateOrder() {
             {/* Header */}
             <div className="bg-white border-b border-slate-200 px-3 py-2 sticky top-0 z-40 shadow-sm flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate(-1)} className="p-1 rounded hover:bg-slate-100">
+                    <button onClick={exitOrder} className="p-1 rounded hover:bg-slate-100">
                         <ChevronLeft size={24} className="text-slate-600" />
                     </button>
                     <img src="/ppw-logo.png" alt="Logo" className="w-8 h-8 object-contain" />
@@ -633,6 +653,12 @@ export default function CreateOrder() {
                             </>
                         )}
                     </div>
+                    {isEmployee && (
+                        <button onClick={() => navigate('/orders')} className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg border bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 transition-colors">
+                            <ClipboardList size={14} />
+                            <span className="hidden sm:inline">History</span>
+                        </button>
+                    )}
                 </div>
                 <div className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">{items.length} Items</div>
             </div>
@@ -767,6 +793,11 @@ export default function CreateOrder() {
                                                 </span>
                                             </div>
                                         </div>
+                                        {/* Media badge: X/4 images, X/2 videos uploaded for this item */}
+                                        <div className="flex flex-col items-end gap-0.5 mr-1.5 shrink-0">
+                                            <span className="text-[8px] font-black px-1 py-0.5 rounded bg-indigo-50 text-indigo-600">IMG {(item as any).imageCount ?? 0}/4</span>
+                                            <span className="text-[8px] font-black px-1 py-0.5 rounded bg-rose-50 text-rose-600">VID {(item as any).videoCount ?? 0}/2</span>
+                                        </div>
                                         <ArrowRight size={14} className="text-slate-200 group-hover:text-indigo-400 transition-all" />
                                     </button>
                                 ))
@@ -838,7 +869,7 @@ export default function CreateOrder() {
                 <div className="flex items-center gap-3">
                     <button onClick={() => setShowCashCalc(true)} className="flex-none pr-4 border-r border-slate-200 text-left active:scale-95 transition-transform"><span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tighter block -mb-1">Total Amount</span><div className="text-2xl font-black text-slate-800 tracking-tight">₹{Math.round(calculateTotalWithTax()).toLocaleString('en-IN')}</div></button>
                     <div className="flex-1 flex gap-2">
-                        <button onClick={() => { if (items.length > 0 && !confirm('Discard changes?')) return; navigate(-1); }} className="flex-1 py-3 text-slate-500 font-bold bg-slate-100/50 rounded-xl active:scale-95 text-xs uppercase">{isLocked ? 'Back' : 'Cancel'}</button>
+                        <button onClick={() => { if (items.length > 0 && !confirm('Discard changes?')) return; exitOrder(); }} className="flex-1 py-3 text-slate-500 font-bold bg-slate-100/50 rounded-xl active:scale-95 text-xs uppercase">{isLocked ? 'Back' : 'Cancel'}</button>
                         {!isLocked && (
                             <>
                                 <button onClick={() => handleSaveOrder(true)} disabled={items.length === 0 || !selectedLedger || isSaving} className="flex-[1.2] py-3 bg-indigo-50 text-indigo-700 font-bold rounded-xl active:scale-95 border border-indigo-100 flex items-center justify-center gap-1.5 text-xs disabled:opacity-50 uppercase"><ArrowRight size={16} /> Tally</button>
@@ -988,9 +1019,46 @@ export default function CreateOrder() {
                     <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tight">New Customer</h3>
                         <div className="space-y-4">
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Customer Name *</label><input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none uppercase" value={newLedgerName} onChange={(e) => setNewLedgerName(e.target.value)} /></div>
-                            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Address *</label><textarea className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none resize-none h-20 uppercase" value={newLedgerAddress} onChange={(e) => setNewLedgerAddress(e.target.value)} /></div>
-                            <div className="flex gap-3 mt-4"><button onClick={() => setShowCreateLedger(false)} className="flex-1 py-3 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 uppercase text-xs">Cancel</button><button onClick={handleCreateLedger} disabled={creatingLedger} className="flex-1 py-3 text-white font-bold bg-indigo-600 rounded-xl disabled:opacity-50 uppercase text-xs">Create</button></div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Customer Name *</label>
+                                <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none uppercase" value={newLedgerName} onChange={(e) => setNewLedgerName(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Address *</label>
+                                <textarea className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none resize-none h-20 uppercase" value={newLedgerAddress} onChange={(e) => setNewLedgerAddress(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Person Name *</label>
+                                    <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none uppercase" value={newLedgerPerson} onChange={(e) => setNewLedgerPerson(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Phone *</label>
+                                    <input type="tel" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none" value={newLedgerPhone} onChange={(e) => setNewLedgerPhone(e.target.value)} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Email</label>
+                                <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none" value={newLedgerEmail} onChange={(e) => setNewLedgerEmail(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">GSTIN</label>
+                                <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none uppercase" value={newLedgerGst} onChange={(e) => setNewLedgerGst(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Pincode</label>
+                                    <input type="text" inputMode="numeric" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none" value={newLedgerPincode} onChange={(e) => setNewLedgerPincode(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">State</label>
+                                    <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-sm outline-none uppercase" value={newLedgerState} onChange={(e) => setNewLedgerState(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="flex gap-3 mt-4">
+                                <button onClick={() => setShowCreateLedger(false)} className="flex-1 py-3 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 uppercase text-xs">Cancel</button>
+                                <button onClick={handleCreateLedger} disabled={creatingLedger} className="flex-1 py-3 text-white font-bold bg-indigo-600 rounded-xl disabled:opacity-50 uppercase text-xs">Create</button>
+                            </div>
                         </div>
                     </div>
                 </div>

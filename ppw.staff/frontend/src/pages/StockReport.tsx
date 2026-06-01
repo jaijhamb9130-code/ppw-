@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getStockItems, syncStockItems, getUser } from '../api';
-import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw, Plus } from 'lucide-react';
+import { Loader, Search, ChevronDown, Tag, Scan, RefreshCw, Plus, Image as ImageIcon, Video } from 'lucide-react';
 import ItemDetailsPage from '../components/ItemDetailsPage';
 
 interface StockItem {
@@ -19,6 +19,8 @@ interface StockItem {
     rate_3: string;
     rate_3a: string;
     rate_4: string;
+    imageCount?: number;
+    videoCount?: number;
 }
 
 interface Pagination {
@@ -202,6 +204,15 @@ export default function StockReport() {
                                         </div>
                                     </div>
                                     <div className="text-right flex flex-col items-end gap-2">
+                                        {/* Media badge: X/4 images, X/2 videos uploaded for this item */}
+                                        <div className="flex items-center gap-1">
+                                            <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                                <ImageIcon size={10} /> {item.imageCount ?? 0}/4
+                                            </span>
+                                            <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                                                <Video size={10} /> {item.videoCount ?? 0}/2
+                                            </span>
+                                        </div>
                                         <div className="font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-1 rounded text-sm min-w-[60px] text-center">
                                             {item.closing_balance || '0'} <span className="text-[10px] text-slate-400 font-normal">{item.base_units}</span>
                                         </div>

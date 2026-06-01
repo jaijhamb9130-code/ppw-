@@ -8,10 +8,14 @@ import {
   UseInterceptors,
   Delete,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ItemDetailsService } from './item-details.service';
+import { AuthGuard } from '@nestjs/passport';
+import { PermissionsGuard } from '../auth/permissions.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 
 function originOf(req: Request): string {
   const host =
@@ -32,6 +36,7 @@ function originOf(req: Request): string {
 }
 
 @Controller('item-details')
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 export class ItemDetailsController {
   constructor(private readonly service: ItemDetailsService) {}
 
@@ -40,6 +45,7 @@ export class ItemDetailsController {
     return this.service.getDetails(masterid, originOf(req));
   }
 
+  @RequirePermission('inventory')
   @Post(':masterid')
   @UseInterceptors(AnyFilesInterceptor({ limits: { fileSize: 500 * 1024 * 1024 } }))
   async saveDetails(
@@ -76,6 +82,7 @@ export class ItemDetailsController {
     );
   }
 
+  @RequirePermission('inventory')
   @Delete(':masterid/media/:slot')
   async deleteMedia(
     @Param('masterid') masterid: string,

@@ -313,12 +313,19 @@ export default function ItemDetailsPage({ onClose }: Props) {
                         {showDropdown && searchResults.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-30">
                                 {searchResults.map((item) => (
-                                    <button key={item.masterid} className="w-full px-3 py-2.5 text-left hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors" onClick={() => handleSelectItem(item)}>
-                                        <div className="font-bold text-[13px] text-slate-800 truncate">{item.name}</div>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[10px] font-medium text-slate-400">{item.parent}</span>
-                                            <span className="text-[10px] text-slate-300">•</span>
-                                            <span className="text-[10px] font-mono text-slate-400">{item.ats_barcode}</span>
+                                    <button key={item.masterid} className="w-full px-3 py-2.5 text-left hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors flex items-center justify-between gap-2" onClick={() => handleSelectItem(item)}>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-[13px] text-slate-800 truncate">{item.name}</div>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[10px] font-medium text-slate-400">{item.parent}</span>
+                                                <span className="text-[10px] text-slate-300">•</span>
+                                                <span className="text-[10px] font-mono text-slate-400">{item.ats_barcode}</span>
+                                            </div>
+                                        </div>
+                                        {/* Media badge: X/4 images, X/2 videos uploaded for this item */}
+                                        <div className="flex flex-col items-end gap-0.5 shrink-0">
+                                            <span className="text-[8px] font-black px-1 py-0.5 rounded bg-indigo-50 text-indigo-600">IMG {(item as any).imageCount ?? 0}/4</span>
+                                            <span className="text-[8px] font-black px-1 py-0.5 rounded bg-rose-50 text-rose-600">VID {(item as any).videoCount ?? 0}/2</span>
                                         </div>
                                     </button>
                                 ))}

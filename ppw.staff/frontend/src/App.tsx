@@ -17,6 +17,17 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { InstallPWA } from './components/InstallPWA';
 import { canAccess, getDefaultRoute } from './utils';
 
+// Permission-aware bottom-nav definition. Each item only renders if
+// canAccess(user, item.to) is true (admin bypass via utils).
+type NavItem = { to: string; icon: React.ElementType; label: string };
+const NAV_ITEMS: NavItem[] = [
+  { to: '/',             icon: LayoutGrid,     label: 'Home' },
+  { to: '/stock-items',  icon: Package,        label: 'Inventory' },
+  { to: '/orders',       icon: ClipboardList,  label: 'History' },
+  { to: '/create-order', icon: Plus,           label: 'New' },
+  { to: '/profile',      icon: Users,          label: 'Users' },
+];
+
 function AuthGuard({ children, path }: { children: React.ReactElement; path?: string }) {
   const userStr = localStorage.getItem('user');
   if (!userStr) return <Navigate to="/login" replace />;
@@ -159,6 +170,9 @@ function Layout() {
 
   React.useEffect(() => {
     const checkTime = () => {
+      // Nap-time auto-logout (23:45–05:00) only applies to the deployed/production
+      // build. Skip it during local dev so testing at night isn't kicked to /login.
+      if (!import.meta.env.PROD) return;
       const now = new Date();
       const hrs = now.getHours();
       const mins = now.getMinutes();
@@ -189,9 +203,13 @@ function Layout() {
   const user = getUser();
   const role = user?.role;
   const isAdmin = role === 'admin';
-  const isManager = role === 'manager';
-  const isEmployee = role === 'employee';
   const isLoggedIn = !!user?.username;
+  // Permission-aware tabs. canAccess() honours admin bypass; managers/employees
+  // only see the pages their system_perms grant.
+  const visibleNav = NAV_ITEMS.filter((item) => canAccess(user, item.to));
+  // Non-admin users get a Profile sheet button (own identity + logout) regardless of permissions.
+  const showProfileSheetTab = isLoggedIn && !isAdmin;
+  const totalCols = visibleNav.length + (showProfileSheetTab ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-slate-200 flex justify-center font-sans selection:bg-indigo-100">
@@ -221,23 +239,21 @@ function Layout() {
         {!hideNav && isLoggedIn && (
           <div className="fixed bottom-0 left-0 right-0 z-50">
             <nav className="bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-safe">
-              <div className={`grid h-16 max-w-md mx-auto ${
-                isAdmin    ? 'grid-cols-4' :
-                isManager  ? 'grid-cols-2' :
-                isEmployee ? 'grid-cols-3' :
-                'grid-cols-1'
-              }`}>
-                {isAdmin && <NavLink to="/" icon={LayoutGrid} label="Home" />}
-                {isAdmin && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
-                {isAdmin && <NavLink to="/create-order" icon={Plus} label="New" />}
-                {isAdmin && <NavLink to="/profile" icon={Users} label="Users" />}
-
-                {isManager && <NavLink to="/stock-items" icon={Package} label="Inventory" />}
-                {isManager && <NavButton icon={UserCircle} label="Profile" onClick={() => setShowProfile(true)} isActive={showProfile} />}
-
-                {isEmployee && <NavLink to="/orders" icon={ClipboardList} label="History" />}
-                {isEmployee && <NavLink to="/create-order" icon={Plus} label="New" />}
-                {isEmployee && <NavButton icon={UserCircle} label="Profile" onClick={() => setShowProfile(true)} isActive={showProfile} />}
+              <div
+                className="grid h-16 max-w-md mx-auto"
+                style={{ gridTemplateColumns: `repeat(${Math.max(1, totalCols)}, minmax(0, 1fr))` }}
+              >
+                {visibleNav.map((item) => (
+                  <NavLink key={item.to} to={item.to} icon={item.icon} label={item.label} />
+                ))}
+                {showProfileSheetTab && (
+                  <NavButton
+                    icon={UserCircle}
+                    label="Profile"
+                    onClick={() => setShowProfile(true)}
+                    isActive={showProfile}
+                  />
+                )}
               </div>
             </nav>
           </div>

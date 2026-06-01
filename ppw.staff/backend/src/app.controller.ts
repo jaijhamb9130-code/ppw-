@@ -19,12 +19,14 @@ import { AuthService } from './auth/auth.service';
 import { TallyService } from './tally.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Ledger } from './entities/ledger.entity';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { StockItem } from './entities/stock-item.entity';
 import { Order } from './entities/order.entity';
 import { OrderDetail } from './entities/order-detail.entity';
 import { Meta } from './entities/meta.entity';
 import { AuthGuard } from '@nestjs/passport';
+import { PermissionsGuard } from './auth/permissions.guard';
+import { RequirePermission } from './auth/permissions.decorator';
 
 @Controller()
 export class AppController {
@@ -42,13 +44,27 @@ export class AppController {
     private orderDetailRepo: Repository<OrderDetail>,
     @InjectRepository(Meta)
     private metaRepo: Repository<Meta>,
+    private dataSource: DataSource,
   ) {}
+
+  // Coerce any incoming value to a finite number. Bad/missing values (null, undefined,
+  // "", NaN) must never reach the NOT NULL decimal columns — a single non-numeric item
+  // amount used to turn the order total into NaN -> null and 500 the whole save.
+  private num(value: any, fallback = 0): number {
+    // Treat empty-ish values as "use fallback" — note Number(null) is 0, not NaN,
+    // so we must guard these explicitly or a null total would silently become 0.
+    if (value === null || value === undefined || value === '') return fallback;
+    const n = typeof value === 'string' ? parseFloat(value) : Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
 
   @Get()
   getHello(): string {
     return this.appService.getHello();
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('dashboard')
   @Get('dashboard/stats')
   async getDashboardStats() {
     const today = new Date();
@@ -145,6 +161,8 @@ export class AppController {
     return this.authService.register(body);
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('ledgers')
   async createLedger(@Body() body: any) {
     if (!body.name) throw new Error('Name is required');
@@ -195,6 +213,8 @@ export class AppController {
     return this.ledgerRepo.save(ledger);
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Patch('orders/:id/finalize')
   async finalizeOrder(@Param('id') id: string) {
     const orderId = parseInt(id);
@@ -215,6 +235,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Patch('orders/items/bulk-status')
   async updateBulkStatus(@Body() body: { itemIds: number[], status: 'approved' | 'rejected' }) {
     const { itemIds, status } = body;
@@ -225,6 +247,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Patch('orders/items/:id')
   async updateOrderItem(@Param('id') id: number, @Body() body: any) {
     const item = await this.orderDetailRepo.findOne({
@@ -255,6 +279,8 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Post('orders/online/sync')
   async syncCompletedOrders() {
     // Marks ALL 'completed' online orders as 'fetched'
@@ -265,8 +291,10 @@ export class AppController {
     return { success: true };
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Post('orders')
-  async createOrder(@Body() body: any) {
+  async createOrder(@Body() body: any, @Request() req) {
     try {
     const {
       bill_number,
@@ -296,62 +324,83 @@ export class AppController {
       }
     }
 
-    const order = new Order();
-    // Allow null bill_number, user might enter it later via Tally or manually
-    order.bill_number = bill_number || null;
-    order.ledger = ledger;
-    order.date = date;
-    order.total_amount = total_amount;
-    order.order_type = order_type || 'Tax Invoice';
-    order.remark = remark;
-    order.amount_given = amount_given;
-
-    // Snapshot customer details
-    if (ledger) {
-      order.customer_name = ledger.person_name || ledger.name;
-      order.customer_address = ledger.address;
-      order.customer_phone = ledger.phone_number;
-      order.customer_email = ledger.email;
-      order.customer_gstin = ledger.gstin;
-      order.customer_pincode = ledger.pincode;
-      order.customer_state = ledger.state;
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new HttpException('Order must contain at least one item.', 400);
     }
 
-    // Set created_by if provided
-    if (created_by) {
-      order.created_by = created_by;
-    }
-    order.source = 'admin';
+    // Recompute total from the (sanitized) line amounts; fall back to it if the
+    // client-sent total is missing/non-numeric so we never write NULL into total_amount.
+    const itemsTotal = items.reduce((sum, it) => sum + this.num(it.amount), 0);
+    const safeTotal = this.num(total_amount, itemsTotal);
 
-    const savedOrder = await this.orderRepo.save(order);
+    // Save header + all details atomically: a failure on any item rolls back the
+    // whole order instead of leaving a half-written, orphaned record.
+    const savedOrder = await this.dataSource.transaction(async (manager) => {
+      const order = new Order();
+      // Allow null bill_number, user might enter it later via Tally or manually
+      order.bill_number = bill_number || null;
+      order.ledger = ledger;
+      order.date = date;
+      order.total_amount = safeTotal;
+      order.order_type = order_type || 'Tax Invoice';
+      order.remark = remark;
+      order.amount_given =
+        amount_given === null || amount_given === undefined || amount_given === ''
+          ? (null as any)
+          : this.num(amount_given);
 
-    for (const item of items) {
-      const orderDetail = new OrderDetail();
-      orderDetail.order = savedOrder;
+      // Snapshot customer details
+      if (ledger) {
+        order.customer_name = ledger.person_name || ledger.name;
+        order.customer_address = ledger.address;
+        order.customer_phone = ledger.phone_number;
+        order.customer_email = ledger.email;
+        order.customer_gstin = ledger.gstin;
+        order.customer_pincode = ledger.pincode;
+        order.customer_state = ledger.state;
+      }
 
-      // Look up by BARCODE — reliable 1:1 mapping vs masterid which can collide
-      const stockItem = item.barcode
-        ? await this.stockRepo.findOneBy({ ats_barcode: item.barcode })
-        : null;
+      // Tag the order with its creator from the authenticated user (JWT) so it
+      // appears in that staff member's order history and is attributed correctly
+      // in the daybook. Falls back to an explicit created_by in the body.
+      const creatorId = req?.user?.id ?? created_by ?? null;
+      if (creatorId) {
+        order.created_by = creatorId;
+      }
+      order.source = 'admin';
 
-      // item.name (from frontend selection) is the authoritative name — NEVER overwrite it
-      orderDetail.item_name = item.name;
-      orderDetail.barcode = item.barcode;
-      orderDetail.rate = item.rate;
-      orderDetail.unit = item.unit;
-      orderDetail.quantity = item.quantity;
-      orderDetail.amount = item.amount;
-      orderDetail.gst = item.gst;
-      orderDetail.selected_scheme = item.selected_scheme;
-      orderDetail.discount_percentage = item.selected_discount;
-      orderDetail.livestock_type = item.livestock_type;
-      orderDetail.stock_item_id = stockItem?.masterid ?? null;
-      orderDetail.parent = stockItem?.parent || item.parent || null;
-      orderDetail.group = stockItem?.group || item.group || null;
-      orderDetail.category = stockItem?.category || item.category || null;
+      const saved = await manager.save(order);
 
-      await this.orderDetailRepo.save(orderDetail);
-    }
+      for (const item of items) {
+        const orderDetail = new OrderDetail();
+        orderDetail.order = saved;
+
+        // Look up by BARCODE — reliable 1:1 mapping vs masterid which can collide
+        const stockItem = item.barcode
+          ? await manager.getRepository(StockItem).findOneBy({ ats_barcode: item.barcode })
+          : null;
+
+        // item.name (from frontend selection) is the authoritative name — NEVER overwrite it
+        orderDetail.item_name = item.name ?? '';
+        orderDetail.barcode = item.barcode;
+        orderDetail.rate = this.num(item.rate);
+        orderDetail.unit = item.unit ?? '';
+        orderDetail.quantity = this.num(item.quantity);
+        orderDetail.amount = this.num(item.amount);
+        orderDetail.gst = this.num(item.gst);
+        orderDetail.selected_scheme = item.selected_scheme;
+        orderDetail.discount_percentage = this.num(item.selected_discount);
+        orderDetail.livestock_type = item.livestock_type;
+        orderDetail.stock_item_id = stockItem?.masterid ?? null;
+        orderDetail.parent = stockItem?.parent || item.parent || null;
+        orderDetail.group = stockItem?.group || item.group || null;
+        orderDetail.category = stockItem?.category || item.category || null;
+
+        await manager.save(orderDetail);
+      }
+
+      return saved;
+    });
 
     return savedOrder;
    } catch (error) {
@@ -469,11 +518,15 @@ export class AppController {
   }
 
   // Separate sync endpoints
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('sync/ledgers')
   async syncLedgers() {
     return this.tallyService.fetchAndSaveLedgers();
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('sync/stock-items')
   async syncStockItems() {
     return this.tallyService.fetchAndSaveStockItems();
@@ -504,6 +557,8 @@ export class AppController {
   }
 
   // Combined sync (legacy)
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('inventory')
   @Post('sync')
   async syncData() {
     try {
@@ -627,8 +682,10 @@ export class AppController {
   }
 
   // Stock Items with pagination
+  @UseGuards(AuthGuard('jwt'))
   @Get('reports/stock-items')
   async getStockItems(
+    @Request() req,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '50',
     @Query('search') search: string = '',
@@ -703,11 +760,56 @@ export class AppController {
         }
       }
 
+      // Per-user inventory scope (RBAC data restriction): if a non-admin user has
+      // Allowed Brands or Allowed Categories set, limit results to those. Empty on
+      // both = full inventory access. Admins always see everything.
+      const ru: any = (req && req.user) || null;
+      if (ru && ru.role !== 'admin' && ru.permissions) {
+        const ap = Array.isArray(ru.permissions.allowedParents)
+          ? ru.permissions.allowedParents.filter(Boolean)
+          : [];
+        const ac = Array.isArray(ru.permissions.allowedCategories)
+          ? ru.permissions.allowedCategories.filter(Boolean)
+          : [];
+        if (ap.length > 0) {
+          query.andWhere('stock.parent IN (:...userParents)', { userParents: ap });
+        }
+        if (ac.length > 0) {
+          query.andWhere('stock.category IN (:...userCats)', { userCats: ac });
+        }
+      }
+
       const [data, total] = await query
         .orderBy('stock.name', 'ASC')
         .skip(skip)
         .take(limitNum)
         .getManyAndCount();
+
+      // Attach media counts per item: imageCount (of 4 slots) / videoCount (of 2 slots).
+      // Sourced from the `media` table keyed by masterid + type. Only counts the current
+      // page's items. Wrapped in try/catch so a media-query issue never 500s the inventory.
+      try {
+        const masterids = (data as any[]).map((d) => d.masterid).filter(Boolean);
+        if (masterids.length > 0) {
+          const rows = await this.dataSource.query(
+            'SELECT masterid, type, COUNT(*) AS cnt FROM media WHERE masterid IN (?) GROUP BY masterid, type',
+            [masterids],
+          );
+          const counts: Record<string, { image: number; video: number }> = {};
+          for (const r of rows) {
+            if (!counts[r.masterid]) counts[r.masterid] = { image: 0, video: 0 };
+            if (r.type === 'video') counts[r.masterid].video = parseInt(r.cnt) || 0;
+            else counts[r.masterid].image = parseInt(r.cnt) || 0;
+          }
+          for (const item of data as any[]) {
+            const c = counts[item.masterid] || { image: 0, video: 0 };
+            item.imageCount = c.image;
+            item.videoCount = c.video;
+          }
+        }
+      } catch (e: any) {
+        console.error('media count enrich failed (non-fatal):', e?.message || e);
+      }
 
       return {
         data,
@@ -844,6 +946,10 @@ export class AppController {
   }
 
   // Orders with pagination
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders', 'reports')
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('reports')
   @Get('reports/orders')
   async getOrders(
     @Query('page') page: string = '1',
@@ -1014,6 +1120,8 @@ export class AppController {
     return orders;
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Get('orders/:id/details')
   async getOrderDetails(@Param('id') id: number) {
     return this.orderDetailRepo.find({
@@ -1021,6 +1129,8 @@ export class AppController {
     });
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Get('orders/:id')
   async getOrderById(@Param('id') id: number) {
     return this.orderRepo.findOne({
@@ -1029,6 +1139,8 @@ export class AppController {
     });
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('reports')
   @Delete('orders/:id')
   async deleteOrder(@Param('id') id: string) {
     try {
@@ -1098,50 +1210,60 @@ export class AppController {
         }
       }
 
+      const safeItems = Array.isArray(items) ? items : [];
+      const itemsTotal = safeItems.reduce((sum, it) => sum + this.num(it.amount), 0);
       order.date = date;
-      order.total_amount = total_amount;
+      order.total_amount = this.num(total_amount, itemsTotal);
       order.order_type = order_type || 'Tax Invoice';
       order.remark = remark;
-      order.amount_given = amount_given;
+      order.amount_given =
+        amount_given === null || amount_given === undefined || amount_given === ''
+          ? (null as any)
+          : this.num(amount_given);
       // Reset status to 'inedit' if it was 'pending' and we edited it?
       // User logic: "they will save... this inedit". Assume edit puts it back to draft.
       order.status = 'inedit';
       order.source = 'admin';
 
-      const savedOrder = await this.orderRepo.save(order);
+      // Atomically save header + replace details. Without a transaction a failure
+      // mid-insert would leave the order with its old details already deleted.
+      const savedOrder = await this.dataSource.transaction(async (manager) => {
+        const saved = await manager.save(order);
 
-      // Replace Details: Delete old, Insert new
-      const oldDetails = await this.orderDetailRepo.find({
-        where: { order: { id: orderId } },
+        // Replace Details: Delete old, Insert new
+        const oldDetails = await manager.getRepository(OrderDetail).find({
+          where: { order: { id: orderId } },
+        });
+        await manager.getRepository(OrderDetail).remove(oldDetails);
+        for (const item of safeItems) {
+          const orderDetail = new OrderDetail();
+          orderDetail.order = saved;
+
+          // Look up by BARCODE — reliable 1:1 mapping vs masterid which can collide
+          const stockItem = item.barcode
+            ? await manager.getRepository(StockItem).findOneBy({ ats_barcode: item.barcode })
+            : null;
+
+          // item.name (from frontend selection) is the authoritative name — NEVER overwrite it
+          orderDetail.item_name = item.name ?? '';
+          orderDetail.barcode = item.barcode;
+          orderDetail.rate = this.num(item.rate);
+          orderDetail.unit = item.unit ?? '';
+          orderDetail.quantity = this.num(item.quantity);
+          orderDetail.amount = this.num(item.amount);
+          orderDetail.gst = this.num(item.gst);
+          orderDetail.selected_scheme = item.selected_scheme;
+          orderDetail.discount_percentage = this.num(item.selected_discount);
+          orderDetail.livestock_type = item.livestock_type;
+          orderDetail.stock_item_id = stockItem?.masterid ?? null;
+          orderDetail.parent = stockItem?.parent || item.parent || null;
+          orderDetail.group = stockItem?.group || item.group || null;
+          orderDetail.category = stockItem?.category || item.category || null;
+
+          await manager.save(orderDetail);
+        }
+        return saved;
       });
-      await this.orderDetailRepo.remove(oldDetails);
-      for (const item of items) {
-        const orderDetail = new OrderDetail();
-        orderDetail.order = savedOrder;
-
-        // Look up by BARCODE — reliable 1:1 mapping vs masterid which can collide
-        const stockItem = item.barcode
-          ? await this.stockRepo.findOneBy({ ats_barcode: item.barcode })
-          : null;
-
-        // item.name (from frontend selection) is the authoritative name — NEVER overwrite it
-        orderDetail.item_name = item.name;
-        orderDetail.barcode = item.barcode;
-        orderDetail.rate = item.rate;
-        orderDetail.unit = item.unit;
-        orderDetail.quantity = item.quantity;
-        orderDetail.amount = item.amount;
-        orderDetail.gst = item.gst;
-        orderDetail.selected_scheme = item.selected_scheme;
-        orderDetail.discount_percentage = item.selected_discount;
-        orderDetail.livestock_type = item.livestock_type;
-        orderDetail.stock_item_id = stockItem?.masterid ?? null;
-        orderDetail.parent = stockItem?.parent || item.parent || null;
-        orderDetail.group = stockItem?.group || item.group || null;
-        orderDetail.category = stockItem?.category || item.category || null;
-
-        await this.orderDetailRepo.save(orderDetail);
-      }
       return savedOrder;
     } catch (error) {
       console.error('Error updating order:', error);
@@ -1149,6 +1271,8 @@ export class AppController {
     }
   }
 
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('orders')
   @Post('orders/:id/sync')
   async syncOrderToTally(@Param('id') id: string) {
     try {
