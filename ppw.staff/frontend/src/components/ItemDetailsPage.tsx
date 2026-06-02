@@ -69,6 +69,10 @@ export default function ItemDetailsPage({ onClose }: Props) {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
     const videoInputRefs = useRef<(HTMLInputElement | null)[]>([null, null]);
+    const cameraImageRefs = useRef<(HTMLInputElement | null)[]>([null, null, null, null]);
+    const cameraVideoRefs = useRef<(HTMLInputElement | null)[]>([null, null]);
+    // Which slot is currently choosing a media source (camera vs gallery), null = closed.
+    const [mediaPicker, setMediaPicker] = useState<{ kind: 'image' | 'video'; index: number } | null>(null);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -399,7 +403,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                         <div
                                             key={slot.slot}
                                             className="relative bg-white border-2 border-dashed border-slate-200 rounded-xl aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-indigo-300 transition-all group cursor-pointer"
-                                            onClick={() => { if (!slot.previewUrl) fileInputRefs.current[index]?.click(); }}
+                                            onClick={() => { if (!slot.previewUrl) setMediaPicker({ kind: 'image', index }); }}
                                         >
                                             <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-slate-800/60 flex items-center justify-center z-10">
                                                 <span className="text-[8px] font-bold text-white">{slot.slot}</span>
@@ -410,7 +414,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                                     <button onClick={(e) => { e.stopPropagation(); handleRemoveImage(index); }} className="absolute top-1 right-1 z-20 w-5 h-5 bg-red-500/90 text-white rounded-full flex items-center justify-center hover:bg-red-600 active:scale-90 transition-all shadow-md">
                                                         <Trash2 size={10} />
                                                     </button>
-                                                    <button onClick={(e) => { e.stopPropagation(); fileInputRefs.current[index]?.click(); }} className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center opacity-0 hover:opacity-100">
+                                                    <button onClick={(e) => { e.stopPropagation(); setMediaPicker({ kind: 'image', index }); }} className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center opacity-0 hover:opacity-100">
                                                         <span className="text-white text-[9px] font-bold bg-black/50 px-1.5 py-0.5 rounded">Change</span>
                                                     </button>
                                                     {slot.file && (
@@ -426,6 +430,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                                 </div>
                                             )}
                                             <input ref={(el) => { fileInputRefs.current[index] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) { handleImageUpload(index, e.target.files[0]); e.target.value = ''; } }} />
+                                            <input ref={(el) => { cameraImageRefs.current[index] = el; }} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { if (e.target.files?.[0]) { handleImageUpload(index, e.target.files[0]); e.target.value = ''; } }} />
                                         </div>
                                     ))}
                                 </div>
@@ -443,7 +448,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                             key={slot.slot}
                                             className="relative bg-white border-2 border-dashed border-slate-200 rounded-xl overflow-hidden hover:border-violet-300 transition-all group cursor-pointer"
                                             style={{ aspectRatio: '16/10' }}
-                                            onClick={() => { if (!slot.previewUrl) videoInputRefs.current[index]?.click(); }}
+                                            onClick={() => { if (!slot.previewUrl) setMediaPicker({ kind: 'video', index }); }}
                                         >
                                             {/* Slot badge */}
                                             <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-slate-800/60 flex items-center justify-center z-10">
@@ -469,7 +474,7 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                                     </button>
                                                     {/* Change overlay */}
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); videoInputRefs.current[index]?.click(); }}
+                                                        onClick={(e) => { e.stopPropagation(); setMediaPicker({ kind: 'video', index }); }}
                                                         className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center opacity-0 hover:opacity-100"
                                                     >
                                                         <span className="text-white text-[9px] font-bold bg-black/50 px-1.5 py-0.5 rounded">Change</span>
@@ -499,6 +504,14 @@ export default function ItemDetailsPage({ onClose }: Props) {
                                                 className="hidden"
                                                 onChange={(e) => { if (e.target.files?.[0]) { handleVideoUpload(index, e.target.files[0]); e.target.value = ''; } }}
                                             />
+                                            <input
+                                                ref={(el) => { cameraVideoRefs.current[index] = el; }}
+                                                type="file"
+                                                accept="video/mp4,video/*"
+                                                capture="environment"
+                                                className="hidden"
+                                                onChange={(e) => { if (e.target.files?.[0]) { handleVideoUpload(index, e.target.files[0]); e.target.value = ''; } }}
+                                            />
                                         </div>
                                     ))}
                                 </div>
@@ -512,6 +525,33 @@ export default function ItemDetailsPage({ onClose }: Props) {
                     )}
                 </div>
             </div>
+
+            {/* Media source chooser: Camera vs Gallery */}
+            {mediaPicker && (
+                <div className="fixed inset-0 z-[60] flex items-end justify-center" onClick={() => setMediaPicker(null)}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div className="relative w-full max-w-md bg-white rounded-t-3xl p-5 pb-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5" />
+                        <h3 className="text-center text-sm font-black text-slate-700 mb-4 uppercase tracking-wide">Add {mediaPicker.kind === 'video' ? 'Video' : 'Photo'}</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => { (mediaPicker.kind === 'image' ? cameraImageRefs : cameraVideoRefs).current[mediaPicker.index]?.click(); setMediaPicker(null); }}
+                                className="flex flex-col items-center gap-2 py-5 bg-indigo-50 border border-indigo-100 rounded-2xl active:scale-95 transition-all"
+                            >
+                                <Camera size={26} className="text-indigo-600" />
+                                <span className="text-xs font-bold text-indigo-700">Camera</span>
+                            </button>
+                            <button
+                                onClick={() => { (mediaPicker.kind === 'image' ? fileInputRefs : videoInputRefs).current[mediaPicker.index]?.click(); setMediaPicker(null); }}
+                                className="flex flex-col items-center gap-2 py-5 bg-slate-50 border border-slate-200 rounded-2xl active:scale-95 transition-all"
+                            >
+                                <ImagePlus size={26} className="text-slate-600" />
+                                <span className="text-xs font-bold text-slate-700">Gallery</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Bottom Action Bar */}
             {selectedItem && !loading && (
