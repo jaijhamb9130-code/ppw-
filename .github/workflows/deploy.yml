@@ -20,26 +20,26 @@ jobs:
 
       - name: Install & build frontend
         run: |
-          cd frontend
+          cd ppw.staff/frontend
           npm ci
           npm run build
 
       - name: Install & build backend
         run: |
-          cd backend
+          cd ppw.staff/backend
           npm ci
           npm run build
 
       - name: Stage frontend build into backend/client/
         run: |
-          rm -rf backend/client
-          mkdir -p backend/client
-          cp -r frontend/dist/. backend/client/
+          rm -rf ppw.staff/backend/client
+          mkdir -p ppw.staff/backend/client
+          cp -r ppw.staff/frontend/dist/. ppw.staff/backend/client/
 
       - name: Create deployment bundle
         run: |
-          cd backend
-          zip -r ../deploy.zip \
+          cd ppw.staff/backend
+          zip -r ../../deploy.zip \
             package.json package-lock.json Procfile dist client .platform \
             -x "*.env" "*.log" "node_modules/*"
 
