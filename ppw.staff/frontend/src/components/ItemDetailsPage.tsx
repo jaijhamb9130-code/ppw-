@@ -526,29 +526,36 @@ export default function ItemDetailsPage({ onClose }: Props) {
                 </div>
             </div>
 
-            {/* Media source chooser: Camera vs Gallery */}
+            {/* Media source chooser: Camera vs Gallery (centered so it never collides with the bottom nav) */}
             {mediaPicker && (
-                <div className="fixed inset-0 z-[60] flex items-end justify-center" onClick={() => setMediaPicker(null)}>
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-                    <div className="relative w-full max-w-md bg-white rounded-t-3xl p-5 pb-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-5" />
-                        <h3 className="text-center text-sm font-black text-slate-700 mb-4 uppercase tracking-wide">Add {mediaPicker.kind === 'video' ? 'Video' : 'Photo'}</h3>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-6" onClick={() => setMediaPicker(null)}>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                    <div className="relative w-full max-w-[20rem] bg-white rounded-3xl p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-center text-sm font-black text-slate-800 mb-4 uppercase tracking-wide">
+                            Add {mediaPicker.kind === 'video' ? 'Video' : 'Photo'}
+                        </h3>
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => { (mediaPicker.kind === 'image' ? cameraImageRefs : cameraVideoRefs).current[mediaPicker.index]?.click(); setMediaPicker(null); }}
-                                className="flex flex-col items-center gap-2 py-5 bg-indigo-50 border border-indigo-100 rounded-2xl active:scale-95 transition-all"
+                                className="flex flex-col items-center justify-center gap-2.5 py-7 bg-indigo-50 border border-indigo-100 rounded-2xl active:scale-95 transition-all"
                             >
-                                <Camera size={26} className="text-indigo-600" />
-                                <span className="text-xs font-bold text-indigo-700">Camera</span>
+                                <Camera size={30} className="text-indigo-600" />
+                                <span className="text-[13px] font-bold text-indigo-700">Camera</span>
                             </button>
                             <button
                                 onClick={() => { (mediaPicker.kind === 'image' ? fileInputRefs : videoInputRefs).current[mediaPicker.index]?.click(); setMediaPicker(null); }}
-                                className="flex flex-col items-center gap-2 py-5 bg-slate-50 border border-slate-200 rounded-2xl active:scale-95 transition-all"
+                                className="flex flex-col items-center justify-center gap-2.5 py-7 bg-slate-50 border border-slate-200 rounded-2xl active:scale-95 transition-all"
                             >
-                                <ImagePlus size={26} className="text-slate-600" />
-                                <span className="text-xs font-bold text-slate-700">Gallery</span>
+                                <ImagePlus size={30} className="text-slate-600" />
+                                <span className="text-[13px] font-bold text-slate-700">Gallery</span>
                             </button>
                         </div>
+                        <button
+                            onClick={() => setMediaPicker(null)}
+                            className="w-full mt-3 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                            Cancel
+                        </button>
                     </div>
                 </div>
             )}
