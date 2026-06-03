@@ -8,6 +8,9 @@ import { ItemMedia } from '../entities/item-media.entity';
 import { StockItem } from '../entities/stock-item.entity';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import { randomUUID } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import sharp from 'sharp';
 import {
   S3Client,
@@ -46,9 +49,42 @@ export class ItemDetailsService {
       );
     }
     this.s3 = new S3Client({ region: this.region });
-    this.tmpDir = path.join(process.cwd(), 'tmp', 'videos');
+    // Transcode scratch dir lives on the OS temp path, NOT the app/deploy
+    // volume root — writing 500MB videos to process.cwd() filled the 8GB disk.
+    this.tmpDir = path.join(os.tmpdir(), 'ppw-video-tmp');
     if (!fs.existsSync(this.tmpDir)) fs.mkdirSync(this.tmpDir, { recursive: true });
+    // Recover disk from any scratch files stranded by a previous crash/OOM.
+    this.cleanupTmpDir(0);
     this.localMediaRoot = path.join(process.cwd(), 'public');
+  }
+
+  /**
+   * Removes ffmpeg transcode scratch files (in_*/out_*) from tmpDir older than
+   * maxAgeMs. SAFETY: only ever touches this.tmpDir scratch files — NEVER the
+   * uploaded images/videos, which live in S3 and are never written to this path.
+   */
+  private cleanupTmpDir(maxAgeMs: number): void {
+    try {
+      const now = Date.now();
+      for (const f of fs.readdirSync(this.tmpDir)) {
+        if (!/^(in|out)_/.test(f)) continue; // only our own scratch files
+        const fp = path.join(this.tmpDir, f);
+        try {
+          const st = fs.statSync(fp);
+          if (st.isFile() && now - st.mtimeMs >= maxAgeMs) fs.unlinkSync(fp);
+        } catch {
+          /* ignore individual file errors */
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Video temp cleanup failed: ${err?.message || err}`);
+    }
+  }
+
+  // Hourly safety net: purge transcode scratch left by killed/aborted requests.
+  @Cron(CronExpression.EVERY_HOUR)
+  purgeStaleVideoTemp(): void {
+    this.cleanupTmpDir(60 * 60 * 1000);
   }
 
   private s3Key(urlName: string, slot: string): string {
@@ -194,24 +230,33 @@ export class ItemDetailsService {
       const key = this.s3Key(urlName, slot);
 
       if (slot.startsWith('vid')) {
-        const tempIn = path.join(this.tmpDir, `in_${Date.now()}.webm`);
-        const tempOut = path.join(this.tmpDir, `out_${Date.now()}.webm`);
-        fs.writeFileSync(tempIn, file.buffer);
+        // Unique names so concurrent uploads can never collide (two Date.now()
+        // calls in the same millisecond previously could clobber each other).
+        const id = randomUUID();
+        const tempIn = path.join(this.tmpDir, `in_${id}.webm`);
+        const tempOut = path.join(this.tmpDir, `out_${id}.webm`);
         try {
+          fs.writeFileSync(tempIn, file.buffer);
           await this.compressVideo(tempIn, tempOut);
-          const videoBuffer = fs.readFileSync(tempOut);
+          // Stream the compressed file straight to S3 instead of reading it back
+          // into a Buffer — avoids the extra memory that triggered OOM kills
+          // (which skipped cleanup and left scratch files filling the disk).
+          const { size } = fs.statSync(tempOut);
           await this.s3.send(new PutObjectCommand({
             Bucket: this.bucket,
             Key: key,
-            Body: videoBuffer,
+            Body: fs.createReadStream(tempOut),
+            ContentLength: size,
             ContentType: 'video/webm',
           })).catch((err) => {
             console.error(`S3 video upload failed for key=${key}:`, err?.message || err);
             throw err;
           });
         } finally {
-          if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
-          if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
+          // Always remove scratch files, even on error. The boot sweep + hourly
+          // cron above are the backstop for hard kills where this can't run.
+          try { if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn); } catch { /* ignore */ }
+          try { if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut); } catch { /* ignore */ }
         }
       } else {
         const compressed = await this.compressImage(file.buffer);

@@ -62,7 +62,7 @@ jobs:
       - name: Verify app is responding
         run: |
           sleep 20
-          URL="http://absppw.ap-south-1.elasticbeanstalk.com/api/auth/login"
+          URL="http://Ppw-env.eba-h52imuvb.ap-south-1.elasticbeanstalk.com/api/auth/login"
           for i in 1 2 3 4 5; do
             CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
               -H "Content-Type: application/json" -d '{}')

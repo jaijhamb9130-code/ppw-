@@ -17,6 +17,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 
+// Per-file upload cap (MB). Default 100 — override with the MAX_UPLOAD_MB env
+// var. A 500MB cap on the ~8GB instance disk was the disk-full crash trigger.
+const MAX_UPLOAD_MB = parseInt(process.env.MAX_UPLOAD_MB || '100', 10);
+
 function originOf(req: Request): string {
   const host =
     (req.headers['x-forwarded-host'] as string)?.split(',')[0]?.trim() ||
@@ -47,7 +51,11 @@ export class ItemDetailsController {
 
   @RequirePermission('inventory')
   @Post(':masterid')
-  @UseInterceptors(AnyFilesInterceptor({ limits: { fileSize: 500 * 1024 * 1024 } }))
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: 12 },
+    }),
+  )
   async saveDetails(
     @Param('masterid') masterid: string,
     @Body() body: any,
