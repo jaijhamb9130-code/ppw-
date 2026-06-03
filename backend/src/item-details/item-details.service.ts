@@ -59,9 +59,10 @@ export class ItemDetailsService {
   }
 
   /**
-   * Removes ffmpeg transcode scratch files (in_*/out_*) from tmpDir older than
-   * maxAgeMs. SAFETY: only ever touches this.tmpDir scratch files — NEVER the
-   * uploaded images/videos, which live in S3 and are never written to this path.
+   * Removes ffmpeg transcode scratch files (names starting "in_" or "out_")
+   * from tmpDir older than maxAgeMs. SAFETY: only ever touches this.tmpDir
+   * scratch files — NEVER the uploaded images/videos, which live in S3 and are
+   * never written to this path.
    */
   private cleanupTmpDir(maxAgeMs: number): void {
     try {
