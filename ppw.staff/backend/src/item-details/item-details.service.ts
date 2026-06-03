@@ -181,16 +181,28 @@ export class ItemDetailsService {
 
     const stockItem = await this.stockItemRepo.findOne({ where: { masterid } });
     const nameCode = stockItem?.name?.match(/^(\S+)/)?.[1];
-    const code = stockItem?.ats_barcode || nameCode || masterid;
+    const rawCode = stockItem?.ats_barcode || nameCode || masterid;
+    // Sanitize to a URL/file-safe slug. media.controller rejects anything not matching
+    // /^[\w.\-]+$/, so items whose barcode/name contain spaces or symbols (e.g. "10/-")
+    // would otherwise produce an unservable key and silently fail to display.
+    const code = String(rawCode).replace(/[^\w.-]/g, '') || masterid;
 
+    // Process each file independently so one bad image/video (e.g. a failed video
+    // encode) can't abort the whole batch — the other images/videos still save.
+    const failedSlots: string[] = [];
     for (const { slot, file } of mediaFiles) {
+      try {
       const existing = await this.mediaRepo.findOne({ where: { masterid, slot } });
       if (existing) {
         await this.deleteFromS3(existing.url_name, slot);
         await this.mediaRepo.remove(existing);
       }
 
-      const urlName = `${code}${slot}`;
+      // Unique per upload (cache-bust). The same slot used to reuse one URL, but media is
+      // served as immutable (max-age 24h), so a delete+re-upload kept serving the OLD
+      // cached/deleted image and showed black on the customer portal. A fresh name each
+      // upload gives every version its own immutable URL — no stale cache, no 404.
+      const urlName = `${code}${slot}-${Date.now().toString(36)}`;
       const key = this.s3Key(urlName, slot);
 
       if (slot.startsWith('vid')) {
@@ -230,9 +242,14 @@ export class ItemDetailsService {
       await this.mediaRepo.save(
         this.mediaRepo.create({ masterid, slot, type, url_name: urlName, uploaded_by: userId }),
       );
+      } catch (err: any) {
+        this.logger.error(`Media save failed for ${masterid} slot=${slot}: ${err?.message || err}`);
+        failedSlots.push(slot);
+      }
     }
 
-    return this.getDetails(masterid, baseUrl);
+    const result = await this.getDetails(masterid, baseUrl);
+    return { ...result, failedSlots };
   }
 
   async deleteMedia(masterid: string, slot: string) {

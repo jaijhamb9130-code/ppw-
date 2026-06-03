@@ -220,10 +220,21 @@ export default function ItemDetailsPage({ onClose }: Props) {
 
             videoSlots.forEach(s => { if (s.file) formData.append(`video_${s.slot}`, s.file); });
 
-            await saveItemDetails(selectedItem.masterid, formData);
+            const totalUploads =
+                imageSlots.filter(s => s.file).length + videoSlots.filter(s => s.file).length;
+            const res = await saveItemDetails(selectedItem.masterid, formData);
             await loadItemDetails(selectedItem.masterid);
-            setSaveSuccess(true);
-            setTimeout(() => setSaveSuccess(false), 2500);
+
+            const failed: string[] = res?.failedSlots || [];
+            if (totalUploads > 0 && failed.length > 0) {
+                const pretty = failed
+                    .map((s: string) => (s.startsWith('vid') ? `Video ${s.replace('vid', '')}` : `Photo ${s.replace('img', '')}`))
+                    .join(', ');
+                alert(`${totalUploads - failed.length} of ${totalUploads} media saved.\nFailed: ${pretty}.\nPlease re-upload those.`);
+            } else {
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 2500);
+            }
         } catch (e) {
             console.error(e);
             alert('Failed to save. Please try again.');
